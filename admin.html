@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: #f8f9fa;
+    }
+    #main-content {
+        display: none; /* Hidden until admin is verified */
+    }
+    .sidebar {
+        height: 100vh;
+        position: sticky;
+        top: 0;
+        background-color: #fff;
+        border-right: 1px solid #dee2e6;
+    }
+    .modal-body .form-control, .modal-body textarea {
+        margin-bottom: 10px;
+    }
+    .offcanvas-body .list-group-item-action {
+        border-radius: .5rem;
+    }
+    #course-editor .course-item,
+    #grade-editor .grade-item {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: .5rem;
+    }
+    .admin-avatar {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loader" class="d-flex justify-content-center align-items-center vh-100">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="ms-3">Verifying admin access...</p>
+</div>
+
+<div id="main-content">
+    <nav class="navbar navbar-light bg-light d-md-none border-bottom">
+        <div class="container-fluid">
+            <button class="btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-controls="sidebarOffcanvas">
+                <i class="bi bi-list fs-3"></i>
+            </button>
+            <span class="navbar-brand mb-0 h1">Admin Panel</span>
+        </div>
+    </nav>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-3 col-lg-2 d-none d-md-block sidebar p-3 d-flex flex-column">
+                <div>
+                    <h4 class="mb-3">Collections</h4>
+                    <div class="list-group" id="collections-nav-desktop">
+                        </div>
+                </div>
+                <div class="mt-auto">
+                    <a href="#" class="btn btn-outline-danger w-100" id="logout-btn-desktop"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+                </div>
+            </nav>
+
+            <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarLabel">
+                <div class="offcanvas-header border-bottom">
+                    <h5 class="offcanvas-title" id="sidebarLabel">Collections</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body d-flex flex-column">
+                    <div class="list-group" id="collections-nav-mobile">
+                        </div>
+                    <a href="#" class="btn btn-outline-danger mt-auto" id="logout-btn-mobile"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+                </div>
+            </div>
+
+            <main class="col-md-9 col-lg-10 ms-sm-auto px-md-4 py-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h1 class="h2" id="current-collection-title">Select a Collection</h1>
+                    <div id="collection-actions"></div>
+                </div>
+                <p id="current-collection-description">Click on a collection from the sidebar to view and manage its documents.</p>
+                <div id="documents-table-container" class="table-responsive">
+                    </div>
+            </main>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editDocModal" tabindex="-1" aria-labelledby="editDocModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editDocModalLabel">Edit Document</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="edit-doc-form-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="save-doc-changes">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="addNoticeModal" tabindex="-1" aria-labelledby="addNoticeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addNoticeModalLabel">Add New Notice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-notice-form">
+            <div class="mb-3">
+                <label for="notice-text" class="form-label">Announcement Text</label>
+                <textarea class="form-control" id="notice-text" rows="3" required></textarea>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-new-notice">Save Notice</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="addMentorModal" tabindex="-1" aria-labelledby="addMentorModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addMentorModalLabel">Add New Mentor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-mentor-form">
+            <div class="mb-3">
+                <label for="mentor-name" class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="mentor-name" required>
+            </div>
+            <div class="mb-3">
+                <label for="mentor-email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="mentor-email" required>
+            </div>
+            <div class="mb-3">
+                <label for="mentor-phone" class="form-label">Phone</label>
+                <input type="tel" class="form-control" id="mentor-phone" required>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-new-mentor">Save Mentor</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete this document? This action cannot be undone.</p>
+        <p class="text-danger fw-bold" id="delete-doc-id"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, getDocs, updateDoc, addDoc, deleteDoc, Timestamp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDxkvvObHv2IuKMKlp81WVsAtm75gkWB0Y",
+        authDomain: "studentportal-eb425.firebaseapp.com",
+        projectId: "studentportal-eb425",
+        storageBucket: "studentportal-eb425.appspot.com",
+        messagingSenderId: "1021027397198",
+        appId: "1:1021027397198:web:7195716ef430ebfb359d1f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const loader = document.getElementById('loader');
+    const mainContent = document.getElementById('main-content');
+    const collectionsNavDesktop = document.getElementById('collections-nav-desktop');
+    const collectionsNavMobile = document.getElementById('collections-nav-mobile');
+    const collectionActions = document.getElementById('collection-actions');
+    const currentCollectionTitle = document.getElementById('current-collection-title');
+    const currentCollectionDesc = document.getElementById('current-collection-description');
+    const documentsContainer = document.getElementById('documents-table-container');
+    
+    const editDocModalEl = new bootstrap.Modal(document.getElementById('editDocModal'));
+    const editDocFormBody = document.getElementById('edit-doc-form-body');
+    const saveDocChangesBtn = document.getElementById('save-doc-changes');
+
+    const addNoticeModalEl = new bootstrap.Modal(document.getElementById('addNoticeModal'));
+    const saveNewNoticeBtn = document.getElementById('save-new-notice');
+
+    const addMentorModalEl = new bootstrap.Modal(document.getElementById('addMentorModal'));
+    const saveNewMentorBtn = document.getElementById('save-new-mentor');
+
+    const confirmDeleteModalEl = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const deleteDocIdEl = document.getElementById('delete-doc-id');
+    
+    const logoutBtnDesktop = document.getElementById('logout-btn-desktop');
+    const logoutBtnMobile = document.getElementById('logout-btn-mobile');
+
+    let currentEditingDocRef = null;
+    let docToDeleteRef = null;
+
+    const baseUrl = window.location.origin;
+
+    const gradeToPoints = (grade) => ({'A': 10, 'B': 8, 'C': 6, 'D': 4, 'F': 0}[grade] || 0);
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            try {
+                const adminRef = doc(db, "admins", user.uid);
+                const adminSnap = await getDoc(adminRef);
+                if (adminSnap.exists()) {
+                    loader.remove();
+                    mainContent.style.display = 'block';
+                    discoverAndLoadCollections();
+                } else {
+                    loader.querySelector('p').textContent = 'Access Denied. Redirecting...';
+                    setTimeout(() => { window.location.href = `${baseUrl}/dashboard.html`; }, 2000);
+                }
+            } catch (error) {
+                console.error("Admin check error:", error);
+                loader.querySelector('p').textContent = 'Error verifying access. Redirecting...';
+                setTimeout(() => { window.location.href = `${baseUrl}/dashboard.html`; }, 2000);
+            }
+        } else {
+            loader.querySelector('p').textContent = 'Redirecting to login...';
+            setTimeout(() => { window.location.href = `${baseUrl}/adminlogin.html`; }, 500);
+        }
+    });
+
+    async function discoverAndLoadCollections() {
+        const collectionNames = ['studentData', 'studentCourses', 'studentGrades', 'notices', 'mentors']; 
+        
+        const createNavLinks = (container) => {
+            container.innerHTML = '';
+            collectionNames.forEach(name => {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.className = 'list-group-item list-group-item-action';
+                link.textContent = name;
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    loadDocumentsForCollection(name);
+                    document.querySelectorAll('.list-group-item-action').forEach(el => el.classList.remove('active'));
+                    document.querySelectorAll(`#collections-nav-desktop a, #collections-nav-mobile a`).forEach(navLink => {
+                        if (navLink.textContent === name) navLink.classList.add('active');
+                    });
+                    const offcanvasInstance = bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas'));
+                    if (offcanvasInstance) offcanvasInstance.hide();
+                };
+                container.appendChild(link);
+            });
+        };
+        
+        createNavLinks(collectionsNavDesktop);
+        createNavLinks(collectionsNavMobile);
+    }
+
+    async function loadDocumentsForCollection(collectionName) {
+        currentCollectionTitle.textContent = `Managing: ${collectionName}`;
+        currentCollectionDesc.textContent = '';
+        collectionActions.innerHTML = '';
+        documentsContainer.innerHTML = '<div class="text-center p-4"><div class="spinner-border"></div></div>';
+
+        if (collectionName === 'notices') {
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn btn-success';
+            addBtn.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Add Notice';
+            addBtn.onclick = () => addNoticeModalEl.show();
+            collectionActions.appendChild(addBtn);
+        } else if (collectionName === 'mentors') {
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn btn-success';
+            addBtn.innerHTML = '<i class="bi bi-person-plus me-2"></i>Add Mentor';
+            addBtn.onclick = () => addMentorModalEl.show();
+            collectionActions.appendChild(addBtn);
+        }
+
+        const collectionRef = collection(db, collectionName);
+        const snapshot = await getDocs(collectionRef);
+
+        if (snapshot.empty) {
+            documentsContainer.innerHTML = '<p class="text-muted mt-3">No documents found.</p>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'table table-striped table-hover align-middle';
+        const thead = table.createTHead();
+        const tbody = table.createTBody();
+        const headerRow = thead.insertRow();
+        
+        let headers = [];
+        
+        if (collectionName === 'studentData') {
+            headers = ['Photo', 'Email', 'Display Name', 'SGPA', 'Credits', 'Actions'];
+        } else if (collectionName === 'studentCourses') {
+            headers = ['Email', 'Courses Enrolled', 'Actions'];
+        } else if (collectionName === 'studentGrades') {
+            headers = ['Email', 'Courses Graded', 'SGPA', 'Actions'];
+        } else if (collectionName === 'mentors') {
+            headers = ['Photo', 'Name', 'Email', 'Phone', 'Actions'];
+        } else {
+            headers = ['Document ID', ...Object.keys(snapshot.docs[0].data()), 'Actions'];
+        }
+
+        headers.forEach(text => headerRow.appendChild(document.createElement('th')).textContent = text);
+
+        for (const docSnap of snapshot.docs) {
+            const row = tbody.insertRow();
+            const docData = docSnap.data();
+            
+            if (collectionName === 'studentData') {
+                const photoCell = row.insertCell();
+                const photoImg = document.createElement('img');
+                photoImg.src = docData.photoBase64 || 'https://placehold.co/40x40/EFEFEF/333333?text=?';
+                photoImg.className = 'admin-avatar';
+                photoCell.appendChild(photoImg);
+                row.insertCell().textContent = docData.email || 'N/A';
+                row.insertCell().textContent = docData.displayName || 'N/A';
+                row.insertCell().textContent = docData.sgpa || '0.00';
+                row.insertCell().textContent = docData.credits || '0';
+            } else if (collectionName === 'studentCourses') {
+                row.insertCell().textContent = docData.email || 'N/A';
+                row.insertCell().textContent = Array.isArray(docData.list) ? docData.list.length : 0;
+            } else if (collectionName === 'mentors') {
+                 const photoCell = row.insertCell();
+                const photoImg = document.createElement('img');
+                photoImg.src = docData.photoBase64 || 'https://placehold.co/40x40/EFEFEF/333333?text=?';
+                photoImg.className = 'admin-avatar';
+                photoCell.appendChild(photoImg);
+                row.insertCell().textContent = docData.name || 'N/A';
+                row.insertCell().textContent = docData.email || 'N/A';
+                row.insertCell().textContent = docData.phone || 'N/A';
+            } else if (collectionName === 'studentGrades') {
+                const emailCell = row.insertCell();
+                if (docData.email) {
+                    emailCell.textContent = docData.email;
+                } else {
+                    emailCell.textContent = 'Fetching...';
+                    getDoc(doc(db, "studentData", docSnap.id)).then(studentDataSnap => {
+                        if (studentDataSnap.exists()) {
+                            emailCell.textContent = studentDataSnap.data().email || 'Not Found';
+                        } else {
+                            emailCell.textContent = 'Not Found';
+                        }
+                    }).catch(() => emailCell.textContent = 'Error');
+                }
+
+                 const grades = docData.grades || [];
+                 row.insertCell().textContent = grades.length;
+                 let totalCredits = 0, totalPoints = 0;
+                 grades.forEach(g => {
+                     const credits = Number(g.creditHours) || 0;
+                     totalCredits += credits;
+                     totalPoints += credits * gradeToPoints(g.grade);
+                 });
+                 const sgpa = totalCredits > 0 ? (totalPoints / totalCredits).toFixed(2) : '0.00';
+                 row.insertCell().textContent = sgpa;
+            } else {
+                row.insertCell().textContent = docSnap.id;
+                Object.keys(snapshot.docs[0].data()).forEach(key => {
+                    const cell = row.insertCell();
+                    const value = docData[key];
+                    cell.textContent = (value && typeof value.toDate === 'function') ? value.toDate().toLocaleString() : value;
+                });
+            }
+
+            const actionCell = row.insertCell();
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-sm btn-primary me-2 mb-1 mb-lg-0';
+            editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+            editBtn.onclick = () => openEditModal(docSnap);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-danger';
+            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            deleteBtn.onclick = () => openDeleteModal(docSnap);
+
+            actionCell.appendChild(editBtn);
+            actionCell.appendChild(deleteBtn);
+        }
+        
+        documentsContainer.innerHTML = '';
+        documentsContainer.appendChild(table);
+    }
+    
+    function openEditModal(docSnap) {
+        currentEditingDocRef = docSnap.ref;
+        const data = docSnap.data();
+        const collectionName = docSnap.ref.parent.id;
+        
+        document.getElementById('editDocModalLabel').textContent = `Editing: ${data.email || data.name || docSnap.id}`;
+        editDocFormBody.innerHTML = '';
+
+        if (collectionName === 'studentData') {
+            renderStudentDataEditor(data);
+        } else if (collectionName === 'studentCourses') {
+            renderCourseEditor(data.list || []);
+        } else if (collectionName === 'studentGrades') {
+            renderGradeEditor(data.grades || []);
+        } else {
+            renderGenericEditor(data, collectionName);
+        }
+        editDocModalEl.show();
+    }
+
+    function renderGenericEditor(data, collectionName) {
+        editDocFormBody.innerHTML = '';
+        for (const key in data) {
+            if (key === 'photoBase64') continue;
+            const value = data[key];
+            const formGroup = document.createElement('div');
+            formGroup.className = 'mb-3';
+            const label = document.createElement('label');
+            label.className = 'form-label';
+            label.textContent = key;
+            formGroup.appendChild(label);
+            let input;
+            
+            const isReadOnly = (collectionName === 'studentData' && ['sgpa', 'credits', 'email'].includes(key)) || (value && typeof value.toDate === 'function');
+
+            if (typeof value === 'number') {
+                input = document.createElement('input'); input.type = 'number';
+            } else if (key === 'text' && typeof value === 'string' && value.length > 100) {
+                 input = document.createElement('textarea'); input.rows = 4;
+            } else {
+                 input = document.createElement('input'); input.type = 'text';
+            }
+            if (isReadOnly) input.disabled = true;
+
+            input.id = `edit-${key}`;
+            input.className = 'form-control';
+            input.value = (value && typeof value.toDate === 'function') ? value.toDate().toLocaleString() : value;
+            formGroup.appendChild(input);
+            editDocFormBody.appendChild(formGroup);
+        }
+    }
+
+    async function renderStudentDataEditor(data) {
+        renderGenericEditor(data, 'studentData'); // Render standard fields first
+
+        const mentorsCol = collection(db, 'mentors');
+        const mentorSnapshot = await getDocs(mentorsCol);
+        let optionsHTML = '<option value="">-- No Mentor Assigned --</option>';
+        mentorSnapshot.forEach(doc => {
+            const mentor = doc.data();
+            const isSelected = doc.id === data.mentorId ? ' selected' : '';
+            optionsHTML += `<option value="${doc.id}"${isSelected}>${mentor.name}</option>`;
+        });
+
+        const formGroup = document.createElement('div');
+        formGroup.className = 'mb-3';
+        formGroup.innerHTML = `
+            <label class="form-label" for="edit-mentorId">Assigned Mentor</label>
+            <select id="edit-mentorId" class="form-select">${optionsHTML}</select>
+        `;
+        editDocFormBody.appendChild(formGroup);
+    }
+
+    function renderCourseEditor(courses) {
+        editDocFormBody.innerHTML = `<h5>Manage Courses</h5><div id="course-editor" class="vstack gap-3"></div><button id="add-course-btn" class="btn btn-success mt-3"><i class="bi bi-plus-circle"></i> Add Course</button>`;
+        const container = document.getElementById('course-editor').parentElement;
+        const editor = document.getElementById('course-editor');
+        const render = () => {
+            editor.innerHTML = courses.map((course, index) => `
+                <div class="course-item">
+                    <div class="flex-grow-1">
+                        <input type="text" class="form-control mb-2" data-index="${index}" data-field="name" placeholder="Course Name" value="${course.name || ''}">
+                        <input type="text" class="form-control" data-index="${index}" data-field="code" placeholder="Course Code" value="${course.code || ''}">
+                    </div>
+                    <button class="btn btn-danger remove-course-btn" data-index="${index}"><i class="bi bi-trash"></i></button>
+                </div>`).join('');
+        };
+        render();
+        container.onclick = (e) => {
+            if (e.target.closest('#add-course-btn')) { courses.push({ name: '', code: '' }); render(); }
+            if (e.target.closest('.remove-course-btn')) { courses.splice(e.target.closest('.remove-course-btn').dataset.index, 1); render(); }
+        };
+        container.onchange = (e) => {
+            if (e.target.matches('input')) { const { index, field } = e.target.dataset; courses[index][field] = e.target.value; }
+        };
+    }
+
+    function renderGradeEditor(grades) {
+        editDocFormBody.innerHTML = `<h5>Manage Grades</h5><div id="grade-editor" class="vstack gap-3"></div><button id="add-grade-btn" class="btn btn-success mt-3"><i class="bi bi-plus-circle"></i> Add Grade</button>`;
+        const container = document.getElementById('grade-editor').parentElement;
+        const editor = document.getElementById('grade-editor');
+        const gradeOptions = ['A', 'B', 'C', 'D', 'F'].map(g => `<option value="${g}">${g}</option>`).join('');
+        const render = () => {
+            editor.innerHTML = grades.map((grade, index) => `
+                <div class="grade-item">
+                    <div class="flex-grow-1 row gx-2">
+                        <div class="col-md-6"><input type="text" class="form-control" data-index="${index}" data-field="courseName" placeholder="Course Name" value="${grade.courseName || ''}"></div>
+                        <div class="col-md-6"><input type="text" class="form-control" data-index="${index}" data-field="courseCode" placeholder="Course Code" value="${grade.courseCode || ''}"></div>
+                        <div class="col-md-6 mt-2"><input type="number" class="form-control" data-index="${index}" data-field="creditHours" placeholder="Credit Hours" value="${grade.creditHours || ''}"></div>
+                        <div class="col-md-6 mt-2"><select class="form-select" data-index="${index}" data-field="grade">${gradeOptions.replace(`value="${grade.grade}"`, `value="${grade.grade}" selected`)}</select></div>
+                    </div>
+                    <button class="btn btn-danger remove-grade-btn" data-index="${index}"><i class="bi bi-trash"></i></button>
+                </div>`).join('');
+        };
+        render();
+        container.onclick = (e) => {
+            if (e.target.closest('#add-grade-btn')) { grades.push({ courseName: '', courseCode: '', creditHours: 0, grade: 'A' }); render(); }
+            if (e.target.closest('.remove-grade-btn')) { grades.splice(e.target.closest('.remove-grade-btn').dataset.index, 1); render(); }
+        };
+        container.onchange = (e) => {
+            if (e.target.matches('input, select')) {
+                const { index, field } = e.target.dataset;
+                grades[index][field] = e.target.type === 'number' ? Number(e.target.value) : e.target.value;
+            }
+        };
+    }
+
+    saveDocChangesBtn.onclick = async () => {
+        const collectionName = currentEditingDocRef.parent.id;
+        let updatedData = {};
+
+        if (collectionName === 'studentCourses') {
+            const courses = [];
+            document.querySelectorAll('#course-editor .course-item').forEach(item => {
+                const course = { name: item.querySelector('[data-field="name"]').value, code: item.querySelector('[data-field="code"]').value };
+                if (course.name) courses.push(course);
+            });
+            updatedData.list = courses;
+            await updateDoc(doc(db, "studentData", currentEditingDocRef.id), { activeCourses: courses.length });
+        } else if (collectionName === 'studentGrades') {
+            const grades = [];
+            document.querySelectorAll('#grade-editor .grade-item').forEach(item => {
+                const grade = {
+                    courseName: item.querySelector('[data-field="courseName"]').value,
+                    courseCode: item.querySelector('[data-field="courseCode"]').value,
+                    creditHours: Number(item.querySelector('[data-field="creditHours"]').value) || 0,
+                    grade: item.querySelector('[data-field="grade"]').value,
+                };
+                if (grade.courseName) grades.push(grade);
+            });
+            updatedData.grades = grades;
+            // SYNC with studentData
+            let totalCredits = 0, totalPoints = 0;
+            grades.forEach(g => { totalCredits += g.creditHours; totalPoints += g.creditHours * gradeToPoints(g.grade); });
+            const sgpa = totalCredits > 0 ? (totalPoints / totalCredits).toFixed(2) : 0.00;
+            await updateDoc(doc(db, "studentData", currentEditingDocRef.id), { sgpa: Number(sgpa), credits: totalCredits });
+        } else {
+            editDocFormBody.querySelectorAll('.form-control, .form-select, textarea').forEach(input => {
+                if (input.disabled) return;
+                const key = input.id.replace('edit-', '');
+                updatedData[key] = (input.type === 'number') ? Number(input.value) : input.value;
+            });
+        }
+
+        try {
+            await updateDoc(currentEditingDocRef, updatedData);
+            editDocModalEl.hide();
+            loadDocumentsForCollection(document.querySelector('.list-group-item-action.active').textContent);
+        } catch (error) { console.error("Error updating document:", error); }
+    };
+
+    saveNewNoticeBtn.onclick = async () => {
+        const noticeText = document.getElementById('notice-text').value;
+        if (!noticeText.trim()) return;
+        try {
+            await addDoc(collection(db, 'notices'), { text: noticeText, timestamp: Timestamp.now() });
+            addNoticeModalEl.hide();
+            document.getElementById('add-notice-form').reset();
+            loadDocumentsForCollection('notices');
+        } catch(error) { console.error("Error adding notice:", error); }
+    };
+
+    saveNewMentorBtn.onclick = async () => {
+        const name = document.getElementById('mentor-name').value;
+        const email = document.getElementById('mentor-email').value;
+        const phone = document.getElementById('mentor-phone').value;
+        if (!name.trim() || !email.trim()) return;
+        try {
+            await addDoc(collection(db, 'mentors'), { name, email, phone });
+            addMentorModalEl.hide();
+            document.getElementById('add-mentor-form').reset();
+            loadDocumentsForCollection('mentors');
+        } catch(error) { console.error("Error adding mentor:", error); }
+    };
+
+    function openDeleteModal(docSnap) {
+        docToDeleteRef = docSnap.ref;
+        deleteDocIdEl.textContent = `ID: ${docSnap.id}`;
+        confirmDeleteModalEl.show();
+    }
+
+    confirmDeleteBtn.onclick = async () => {
+        try {
+            await deleteDoc(docToDeleteRef);
+            confirmDeleteModalEl.hide();
+            loadDocumentsForCollection(document.querySelector('.list-group-item-action.active').textContent);
+        } catch(error) { console.error("Error deleting document:", error); }
+    };
+    
+    const handleLogout = () => { signOut(auth).then(() => { window.location.href = `${baseUrl}/index.html`; }); };
+    logoutBtnDesktop.addEventListener('click', (e) => { e.preventDefault(); handleLogout(); });
+    logoutBtnMobile.addEventListener('click', (e) => { e.preventDefault(); handleLogout(); });
+
+</script>
+</body>
+</html>
