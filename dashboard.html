@@ -157,6 +157,63 @@
     .grade-d { background-color: #fd7e14; color: white; }
     .grade-f { background-color: #dc3545; color: white; }
     
+    #qrcode {
+        padding: 10px;
+        background: white;
+        border-radius: 8px;
+    }
+     #qrcode img {
+        display: block;
+        margin: auto;
+    }
+    
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.5rem;
+    }
+    .calendar-day, .calendar-day-name {
+        text-align: center;
+        padding: 0.75rem 0.25rem;
+        border-radius: 8px;
+    }
+    .calendar-day {
+        color: white;
+    }
+    .calendar-day-name {
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+    .calendar-day.is-present { background-color: rgba(40, 167, 69, 0.7); color: white; }
+    .calendar-day.is-absent { background-color: rgba(220, 53, 69, 0.7); color: white; }
+    .calendar-day.is-holiday { background-color: rgba(255, 193, 7, 0.7); color: black; }
+    .calendar-day.is-today {
+        box-shadow: 0 0 0 2px var(--accent-start);
+    }
+    .legend {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+    }
+
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
@@ -223,6 +280,7 @@
           <a class="nav-link px-3 py-2" href="#/courses"><i class="bi bi-book me-2"></i>Courses</a>
           <a class="nav-link px-3 py-2" href="#/assignments"><i class="bi bi-journal-text me-2"></i>Assignments</a>
           <a class="nav-link px-3 py-2" href="#/grades"><i class="bi bi-bar-chart-line me-2"></i>Grades</a>
+          <a class="nav-link px-3 py-2" href="#/attendance"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
           <a class="nav-link px-3 py-2" href="#/announcements"><i class="bi bi-megaphone me-2"></i>Announcements</a>
           <a class="nav-link px-3 py-2" href="#/profile"><i class="bi bi-person-circle me-2"></i>Profile</a>
           <a class="nav-link px-3 py-2" href="#/contact"><i class="bi bi-person-rolodex me-2"></i>Contact Us</a>
@@ -244,6 +302,7 @@
             <a class="nav-link px-3 py-2" href="#/courses"><i class="bi bi-book me-2"></i>Courses</a>
             <a class="nav-link px-3 py-2" href="#/assignments"><i class="bi bi-journal-text me-2"></i>Assignments</a>
             <a class="nav-link px-3 py-2" href="#/grades"><i class="bi bi-bar-chart-line me-2"></i>Grades</a>
+            <a class="nav-link px-3 py-2" href="#/attendance"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
             <a class="nav-link px-3 py-2" href="#/announcements"><i class="bi bi-megaphone me-2"></i>Announcements</a>
             <a class="nav-link px-3 py-2" href="#/profile"><i class="bi bi-person-circle me-2"></i>Profile</a>
             <a class="nav-link px-3 py-2" href="#/contact"><i class="bi bi-person-rolodex me-2"></i>Contact Us</a>
@@ -259,6 +318,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
@@ -297,7 +357,7 @@
     const sidebar = new bootstrap.Offcanvas(sidebarOffcanvasEl);
     mobileNavLinks.forEach(link => {
         link.addEventListener('click', () => {
-            if (sidebar) sidebar.hide();
+            sidebar.hide();
         });
     });
 
@@ -328,6 +388,140 @@
             </div>`;
     };
     
+    const renderAttendance = async (user) => {
+        const attendanceRef = doc(db, "studentAttendance", user.uid);
+        const holidayRef = doc(db, "globalData", "holidays");
+
+        let attendanceData = {};
+        let holidayData = {};
+
+        try {
+            const attendanceSnap = await getDoc(attendanceRef);
+            if (attendanceSnap.exists()) {
+                attendanceData = attendanceSnap.data().records || {};
+            }
+            const holidaySnap = await getDoc(holidayRef);
+            if (holidaySnap.exists()) {
+                holidayData = holidaySnap.data().dates || {};
+            }
+        } catch (error) {
+            console.error("Error fetching attendance data:", error);
+            // Proceed with empty data, so the page doesn't get stuck buffering
+        }
+
+        pageContent.innerHTML = `
+            <h1 class="mb-4">My Attendance</h1>
+            <div id="monthly-stats-container" class="mb-4"></div>
+            <div class="card">
+                <div class="card-body p-lg-4" id="calendar-container">
+                    </div>
+            </div>`;
+
+        let currentDate = new Date();
+
+        const generateCalendar = (year, month) => {
+            const container = document.getElementById('calendar-container');
+            if (!container) return;
+
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startDayIndex = firstDay.getDay();
+
+            // Monthly stats calculation
+            let monthPresent = 0;
+            let monthWorkingDays = 0;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const loopDate = new Date(year, month, day);
+                 if (loopDate > today) break;
+
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                if (holidayData[dateString]) continue;
+
+                const status = attendanceData[dateString];
+                if (status === 'present' || status === 'absent') {
+                    monthWorkingDays++;
+                    if (status === 'present') {
+                        monthPresent++;
+                    }
+                }
+            }
+            
+            const monthlyPercentage = monthWorkingDays > 0 ? Math.round((monthPresent / monthWorkingDays) * 100) : 'N/A';
+            const statsContainer = document.getElementById('monthly-stats-container');
+            statsContainer.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title text-center mb-0">Attendance for ${monthNames[month]} ${year}: <span class="fw-bold" style="color: var(--accent-start);">${monthlyPercentage}${monthlyPercentage !== 'N/A' ? '%' : ''}</span></h5>
+                    </div>
+                </div>`;
+
+
+            let calendarHTML = `
+                <div class="calendar-header">
+                    <button id="prev-month" class="btn btn-outline-light">&lt;</button>
+                    <h4 class="mb-0">${monthNames[month]} ${year}</h4>
+                    <button id="next-month" class="btn btn-outline-light">&gt;</button>
+                </div>
+                <div class="calendar-grid">
+                    ${dayNames.map(day => `<div class="calendar-day-name">${day}</div>`).join('')}
+            `;
+
+            for (let i = 0; i < startDayIndex; i++) {
+                calendarHTML += `<div></div>`;
+            }
+
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const loopDate = new Date(year, month, day);
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const status = attendanceData[dateString];
+                let dayClass = 'calendar-day';
+
+                if (holidayData[dateString]) {
+                    dayClass += ' is-holiday';
+                } else if (status === 'present') {
+                    dayClass += ' is-present';
+                } else if (status === 'absent') {
+                    dayClass += ' is-absent';
+                }
+                
+                if (loopDate.getTime() === today.getTime()) {
+                    dayClass += ' is-today';
+                }
+
+                calendarHTML += `<div class="${dayClass}">${day}</div>`;
+            }
+
+            calendarHTML += `</div>
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color" style="background-color: rgba(40, 167, 69, 0.7);"></span> Present</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: rgba(220, 53, 69, 0.7);"></span> Absent</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color: rgba(255, 193, 7, 0.7);"></span> Holiday</div>
+                </div>
+            `;
+            container.innerHTML = calendarHTML;
+
+            document.getElementById('prev-month').addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            });
+            document.getElementById('next-month').addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            });
+        };
+        
+        generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
+    };
+
     const renderAnnouncements = async () => {
         const q = query(collection(db, "notices"), orderBy("timestamp", "desc"));
         const querySnapshot = await getDocs(q);
@@ -365,37 +559,51 @@
                 <div class="col-lg-8">
                     <div class="card">
                         <div class="card-body p-4">
-                            <h2 class="mb-4">Edit Profile</h2>
-                            <div class="text-center mb-4">
-                                <img src="${photo}" alt="Profile Picture" class="profile-avatar" id="profile-pic-preview">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h2 class="mb-4">Edit Profile</h2>
+                                    <form id="profile-form">
+                                        <div class="mb-3">
+                                            <label for="displayName" class="form-label">Display Name</label>
+                                            <input type="text" class="form-control" id="displayName" value="${studentData.displayName || ''}" placeholder="Enter your full name">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="email" class="form-label">Email Address</label>
+                                            <input type="email" class="form-control" id="email" value="${user.email}" disabled>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="photoUpload" class="form-label">Change Profile Picture</label>
+                                            <input class="form-control" type="file" id="photoUpload" accept="image/png, image/jpeg">
+                                        </div>
+                                        <div id="alert-container"></div>
+                                        <button type="submit" class="btn btn-primary w-100" id="save-profile-btn">
+                                            Save Changes
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="col-md-4 text-center mt-4 mt-md-0">
+                                    <h5 class="mb-3">Your QR Code</h5>
+                                    <div id="qrcode" class="mx-auto" style="width: 180px; height: 180px;"></div>
+                                    <small class="text-muted d-block mt-2">Show this for attendance</small>
+                                </div>
                             </div>
-                            <form id="profile-form">
-                                <div class="mb-3">
-                                    <label for="displayName" class="form-label">Display Name</label>
-                                    <input type="text" class="form-control" id="displayName" value="${studentData.displayName || ''}" placeholder="Enter your full name">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" id="email" value="${user.email}" disabled>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="photoUpload" class="form-label">Change Profile Picture</label>
-                                    <input class="form-control" type="file" id="photoUpload" accept="image/png, image/jpeg">
-                                </div>
-                                <div id="alert-container"></div>
-                                <button type="submit" class="btn btn-primary w-100" id="save-profile-btn">
-                                    Save Changes
-                                </button>
-                            </form>
                         </div>
                     </div>
                 </div>
             </div>`;
+        
+        new QRCode(document.getElementById("qrcode"), {
+            text: user.uid,
+            width: 160,
+            height: 160,
+            colorDark : "#0D1117",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
 
         const profileForm = document.getElementById('profile-form');
         const displayNameInput = document.getElementById('displayName');
         const photoUploadInput = document.getElementById('photoUpload');
-        const profilePicPreview = document.getElementById('profile-pic-preview');
         const saveBtn = document.getElementById('save-profile-btn');
         const alertContainer = document.getElementById('alert-container');
         let newPhotoBase64 = null;
@@ -419,7 +627,6 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         newPhotoBase64 = canvas.toDataURL('image/jpeg', 0.9);
-                        profilePicPreview.src = newPhotoBase64;
                     };
                     img.src = event.target.result;
                 };
@@ -629,6 +836,7 @@
         '/announcements': { title: 'Announcements', render: renderAnnouncements },
         '/profile': { title: 'Profile', render: renderProfile },
         '/grades': { title: 'Grades', render: renderGrades },
+        '/attendance': { title: 'Attendance', render: renderAttendance },
         '/contact': { title: 'Contact Us', render: renderContact },
         '/assignments': { title: 'Assignments', render: () => renderComingSoon('Assignments') },
     };
@@ -657,10 +865,11 @@
             
             const studentDataRef = doc(db, "studentData", user.uid);
             let studentSnap = await getDoc(studentDataRef);
-            if (!studentSnap.exists()) {
-                await setDoc(studentDataRef, { 
+            if (!studentSnap.exists() || !studentSnap.data().qrCodeValue) {
+                 await setDoc(studentDataRef, { 
                     email: user.email, 
                     displayName: user.displayName || user.email.split('@')[0],
+                    qrCodeValue: user.uid,
                     activeCourses: 0, 
                     assignmentsDue: 0, 
                     credits: 0, 
@@ -668,8 +877,9 @@
                     sgpa: 0.0, 
                     messages: 0,
                     mentorId: null
-                });
+                }, { merge: true });
             }
+            
             const studentCoursesRef = doc(db, "studentCourses", user.uid);
             let coursesSnap = await getDoc(studentCoursesRef);
             if (!coursesSnap.exists()) {
@@ -680,6 +890,11 @@
             if (!gradesSnap.exists()) {
                 await setDoc(studentGradesRef, { email: user.email, grades: [] });
             }
+            const studentAttendanceRef = doc(db, "studentAttendance", user.uid);
+            let attendanceSnap = await getDoc(studentAttendanceRef);
+            if (!attendanceSnap.exists()) {
+                await setDoc(studentAttendanceRef, { email: user.email, records: {} });
+            }
 
             const freshStudentSnap = await getDoc(studentDataRef);
             const studentData = freshStudentSnap.data();
@@ -689,18 +904,10 @@
             }
 
             router();
-        } else { 
-            // *** CORRECTED REDIRECT ***
-            window.location.href = `login.html`; 
-        }
+        } else { window.location.href = 'login.html'; }
     });
 
-    const handleLogout = () => { 
-        signOut(auth).then(() => { 
-            // *** CORRECTED REDIRECT ***
-            window.location.href = `index.html`; 
-        }); 
-    };
+    const handleLogout = () => { signOut(auth).then(() => { window.location.href = 'index.html'; }); };
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     document.getElementById('logout-btn-mobile').addEventListener('click', handleLogout);
   </script>
