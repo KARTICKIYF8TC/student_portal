@@ -278,7 +278,6 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const baseUrl = window.location.origin;
     const pageContent = document.getElementById('page-content');
     const pageTitle = document.getElementById('page-title');
     let currentUser = null;
@@ -298,7 +297,7 @@
     const sidebar = new bootstrap.Offcanvas(sidebarOffcanvasEl);
     mobileNavLinks.forEach(link => {
         link.addEventListener('click', () => {
-            sidebar.hide();
+            if (sidebar) sidebar.hide();
         });
     });
 
@@ -690,10 +689,18 @@
             }
 
             router();
-        } else { window.location.href = `${baseUrl}/login.html`; }
+        } else { 
+            // *** CORRECTED REDIRECT ***
+            window.location.href = `login.html`; 
+        }
     });
 
-    const handleLogout = () => { signOut(auth).then(() => { window.location.href = `${baseUrl}/index.html`; }); };
+    const handleLogout = () => { 
+        signOut(auth).then(() => { 
+            // *** CORRECTED REDIRECT ***
+            window.location.href = `index.html`; 
+        }); 
+    };
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     document.getElementById('logout-btn-mobile').addEventListener('click', handleLogout);
   </script>
