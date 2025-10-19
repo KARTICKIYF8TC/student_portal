@@ -599,6 +599,87 @@
         editDocFormBody.appendChild(formGroup);
     }
     
+    // START: FIXED CODE
+    function renderCourseEditor(courses) {
+        editDocFormBody.innerHTML = `
+            <div id="course-editor">
+                <h5>Enrolled Courses</h5>
+                <div id="course-list" class="vstack gap-2"></div>
+                <button type="button" class="btn btn-success btn-sm mt-3" id="add-course-btn"><i class="bi bi-plus-circle me-1"></i>Add Course</button>
+            </div>
+        `;
+        const courseList = document.getElementById('course-list');
+
+        const createCourseItem = (course = { name: '', code: '' }) => {
+            const item = document.createElement('div');
+            item.className = 'course-item';
+            item.innerHTML = `
+                <div class="flex-grow-1">
+                    <input type="text" class="form-control mb-2" data-field="name" placeholder="Course Name" value="${course.name}">
+                    <input type="text" class="form-control" data-field="code" placeholder="Course Code" value="${course.code}">
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-item-btn"><i class="bi bi-trash"></i></button>
+            `;
+            item.querySelector('.remove-item-btn').onclick = () => item.remove();
+            return item;
+        };
+
+        if (courses.length > 0) {
+            courses.forEach(course => courseList.appendChild(createCourseItem(course)));
+        } else {
+             courseList.appendChild(createCourseItem());
+        }
+
+        document.getElementById('add-course-btn').onclick = () => {
+            courseList.appendChild(createCourseItem());
+        };
+    }
+
+    function renderGradeEditor(grades) {
+        editDocFormBody.innerHTML = `
+            <div id="grade-editor">
+                <h5>Course Grades</h5>
+                <div id="grade-list" class="vstack gap-2"></div>
+                <button type="button" class="btn btn-success btn-sm mt-3" id="add-grade-btn"><i class="bi bi-plus-circle me-1"></i>Add Grade</button>
+            </div>
+        `;
+        const gradeList = document.getElementById('grade-list');
+        const gradeOptions = ['A', 'B', 'C', 'D', 'F'].map(g => `<option value="${g}">${g}</option>`).join('');
+
+        const createGradeItem = (grade = { courseName: '', courseCode: '', creditHours: 0, grade: 'A' }) => {
+            const item = document.createElement('div');
+            item.className = 'grade-item';
+            item.innerHTML = `
+                <div class="flex-grow-1">
+                    <input type="text" class="form-control mb-2" data-field="courseName" placeholder="Course Name" value="${grade.courseName}">
+                    <input type="text" class="form-control mb-2" data-field="courseCode" placeholder="Course Code" value="${grade.courseCode}">
+                    <div class="input-group">
+                        <input type="number" class="form-control" data-field="creditHours" placeholder="Credits" value="${grade.creditHours}">
+                        <select class="form-select" data-field="grade"></select>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm remove-item-btn"><i class="bi bi-trash"></i></button>
+            `;
+            const selectEl = item.querySelector('[data-field="grade"]');
+            selectEl.innerHTML = gradeOptions;
+            selectEl.value = grade.grade;
+
+            item.querySelector('.remove-item-btn').onclick = () => item.remove();
+            return item;
+        };
+        
+        if(grades.length > 0) {
+            grades.forEach(grade => gradeList.appendChild(createGradeItem(grade)));
+        } else {
+            gradeList.appendChild(createGradeItem());
+        }
+
+        document.getElementById('add-grade-btn').onclick = () => {
+            gradeList.appendChild(createGradeItem());
+        };
+    }
+    // END: FIXED CODE
+
     function renderAttendanceEditor() {
         let currentDate = new Date();
 
