@@ -68,6 +68,8 @@
     }
     .admin-calendar-day.is-present { background-color: #198754; color: white; }
     .admin-calendar-day.is-absent { background-color: #dc3545; color: white; }
+    /* --- NEW: Style for late status --- */
+    .admin-calendar-day.is-late { background-color: #0d6efd; color: white; }
     .admin-calendar-day.is-holiday { 
         background-color: #ffc107; 
         color: black;
@@ -305,6 +307,97 @@
 
     const gradeToPoints = (grade) => ({'A': 10, 'B': 8, 'C': 6, 'D': 4, 'F': 0}[grade] || 0);
 
+    async function runDailyAbsenceCheck() {
+        const today = new Date();
+        const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const checkKey = `absenceCheck_${todayString}`;
+
+        if (sessionStorage.getItem(checkKey)) {
+            console.log("Daily absence check has already run for today in this session.");
+            return;
+        }
+
+        const cutoffHour = 10;
+        const cutoffMinute = 1; // Set to 10:01 AM
+        if (today.getHours() < cutoffHour || (today.getHours() === cutoffHour && today.getMinutes() < cutoffMinute)) {
+            console.log("It's not yet time for the daily absence check.");
+            return;
+        }
+
+        console.log("Running automatic daily absence check...");
+        try {
+            const holidayRef = doc(db, "globalData", "holidays");
+            const holidaySnap = await getDoc(holidayRef);
+            const holidays = holidaySnap.exists() ? holidaySnap.data().dates : {};
+
+            if (holidays[todayString]) {
+                console.log("Today is a holiday. Skipping absence check.");
+                sessionStorage.setItem(checkKey, 'true');
+                return;
+            }
+
+            const attendanceCollectionRef = collection(db, "studentAttendance");
+            const attendanceSnapshot = await getDocs(attendanceCollectionRef);
+            
+            if (attendanceSnapshot.empty) return;
+
+            const batch = writeBatch(db);
+            const studentsToUpdate = [];
+
+            attendanceSnapshot.forEach(attendanceDoc => {
+                const records = attendanceDoc.data().records || {};
+                if (!records.hasOwnProperty(todayString)) {
+                    const attendanceDocRef = doc(db, "studentAttendance", attendanceDoc.id);
+                    batch.update(attendanceDocRef, { [`records.${todayString}`]: 'absent' });
+                    studentsToUpdate.push({
+                        id: attendanceDoc.id,
+                        records: { ...records, [todayString]: 'absent' }
+                    });
+                }
+            });
+
+            if (studentsToUpdate.length === 0) {
+                console.log("All students have attendance records for today.");
+                sessionStorage.setItem(checkKey, 'true');
+                return;
+            }
+
+            await batch.commit();
+            console.log(`Marked ${studentsToUpdate.length} students as absent.`);
+
+            const recalculationBatch = writeBatch(db);
+            for (const student of studentsToUpdate) {
+                let presentCount = 0;
+                let workingDays = 0;
+                for (const dateStr in student.records) {
+                    if (!holidays[dateStr]) {
+                        // --- MODIFIED: Count late as present ---
+                        if (student.records[dateStr] === 'present' || student.records[dateStr] === 'late') presentCount++;
+                        if (student.records[dateStr] !== 'holiday') workingDays++;
+                    }
+                }
+                const attendancePercent = workingDays > 0 ? Math.round((presentCount / workingDays) * 100) : 0;
+                
+                const studentDataRef = doc(db, "studentData", student.id);
+                recalculationBatch.update(studentDataRef, { attendance: attendancePercent });
+            }
+            
+            await recalculationBatch.commit();
+            console.log(`Recalculated attendance for ${studentsToUpdate.length} students.`);
+
+            sessionStorage.setItem(checkKey, 'true');
+
+            const activeCollectionLink = document.querySelector('.list-group-item-action.active');
+            if (activeCollectionLink && activeCollectionLink.textContent.includes('Attendance')) {
+                loadDocumentsForCollection(activeCollectionLink.textContent);
+            }
+
+        } catch (error) {
+            console.error("Error during daily absence check:", error);
+        }
+    }
+
+
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             try {
@@ -314,6 +407,7 @@
                 if (adminSnap.exists()) {
                     loader.remove();
                     mainContent.style.display = 'block';
+                    await runDailyAbsenceCheck();
                     discoverAndLoadCollections();
                 } else {
                     loader.querySelector('p').textContent = 'Access Denied. You do not have admin privileges. Redirecting...';
@@ -532,7 +626,7 @@
                 const holidaySnap = await getDoc(holidayDocRef);
                 globalHolidayRecords = holidaySnap.exists() ? holidaySnap.data().dates : {};
             } catch (error) {
-                console.warn("Could not load global holidays, likely due to Firestore security rules. Proceeding without them.", error);
+                console.warn("Could not load global holidays.", error);
                 globalHolidayRecords = {};
             }
             
@@ -599,7 +693,6 @@
         editDocFormBody.appendChild(formGroup);
     }
     
-    // START: FIXED CODE
     function renderCourseEditor(courses) {
         editDocFormBody.innerHTML = `
             <div id="course-editor">
@@ -678,7 +771,6 @@
             gradeList.appendChild(createGradeItem());
         };
     }
-    // END: FIXED CODE
 
     function renderAttendanceEditor() {
         let currentDate = new Date();
@@ -713,6 +805,8 @@
                     dayClass += ' is-present';
                 } else if (studentStatus === 'absent') {
                     dayClass += ' is-absent';
+                } else if (studentStatus === 'late') { // --- MODIFIED: check for late status ---
+                    dayClass += ' is-late';
                 }
                 html += `<div class="${dayClass}" data-date="${dateString}">${day}</div>`;
             }
@@ -737,7 +831,8 @@
                 const date = dayEl.dataset.date;
 
                 const isCurrentlyGlobalHoliday = globalHolidayRecords[date] === true;
-                const states = ['present', 'absent', 'holiday', undefined];
+                // --- MODIFIED: Add 'late' to the cycle of states ---
+                const states = ['present', 'absent', 'late', 'holiday', undefined];
                 let currentStatus;
 
                 if ((isCurrentlyGlobalHoliday && !holidaysToRemove.has(date)) || holidaysToAdd.has(date)) {
@@ -749,13 +844,12 @@
                 const currentIndex = states.indexOf(currentStatus);
                 const nextStatus = states[(currentIndex + 1) % states.length];
                 
-                dayEl.classList.remove('is-present', 'is-absent', 'is-holiday');
+                dayEl.classList.remove('is-present', 'is-absent', 'is-late', 'is-holiday');
 
-                // Update temporary holiday sets
                 if (nextStatus === 'holiday') {
                     holidaysToAdd.add(date);
                     holidaysToRemove.delete(date);
-                    delete currentAttendanceRecords[date]; // Clear student-specific status
+                    delete currentAttendanceRecords[date];
                 } else {
                     if (isCurrentlyGlobalHoliday || holidaysToAdd.has(date)) {
                          holidaysToRemove.add(date);
@@ -769,9 +863,9 @@
                     }
                 }
                 
-                // Update display
                 if (nextStatus === 'present') dayEl.classList.add('is-present');
                 else if (nextStatus === 'absent') dayEl.classList.add('is-absent');
+                else if (nextStatus === 'late') dayEl.classList.add('is-late');
                 else if (nextStatus === 'holiday') dayEl.classList.add('is-holiday');
             }
         };
@@ -788,12 +882,9 @@
         
         await setDoc(holidayDocRef, { dates: newHolidayData });
 
-        // Now, recalculate for all students
         const studentCollectionRef = collection(db, "studentData");
         const studentSnapshot = await getDocs(studentCollectionRef);
-        const today = new Date();
-        today.setHours(0,0,0,0);
-
+        
         const batch = writeBatch(db);
 
         for (const studentDoc of studentSnapshot.docs) {
@@ -804,16 +895,16 @@
             if (attendanceSnap.exists()) {
                 const records = attendanceSnap.data().records || {};
                 let presentCount = 0;
-                let absentCount = 0;
+                let workingDays = 0;
 
                 for (const dateStr in records) {
-                    if (!newHolidayData[dateStr]) { // Only count if it's not a holiday
-                        if (records[dateStr] === 'present') presentCount++;
-                        else if (records[dateStr] === 'absent') absentCount++;
+                    if (!newHolidayData[dateStr]) {
+                        // --- MODIFIED: Count late as present ---
+                        if (records[dateStr] === 'present' || records[dateStr] === 'late') presentCount++;
+                        if (records[dateStr] !== 'holiday') workingDays++;
                     }
                 }
-                const totalWorkingDays = presentCount + absentCount;
-                const attendancePercent = totalWorkingDays > 0 ? Math.round((presentCount / totalWorkingDays) * 100) : 0;
+                const attendancePercent = workingDays > 0 ? Math.round((presentCount / workingDays) * 100) : 0;
 
                 const studentDataRef = doc(db, "studentData", studentId);
                 batch.update(studentDataRef, { attendance: attendancePercent });
@@ -851,16 +942,15 @@
 
         if (collectionName === 'studentAttendance') {
             updatedData.records = currentAttendanceRecords;
-            // Recalculate for the current student
-            let presentCount = 0, absentCount = 0;
+            let presentCount = 0, workingDays = 0;
             for(const dateStr in currentAttendanceRecords) {
                 if (!finalHolidayData[dateStr]) {
-                    if (currentAttendanceRecords[dateStr] === 'present') presentCount++;
-                    else if (currentAttendanceRecords[dateStr] === 'absent') absentCount++;
+                    // --- MODIFIED: Count late as present ---
+                    if (currentAttendanceRecords[dateStr] === 'present' || currentAttendanceRecords[dateStr] === 'late') presentCount++;
+                    if (currentAttendanceRecords[dateStr] !== 'holiday') workingDays++;
                 }
             }
-            const totalDays = presentCount + absentCount;
-            const attendancePercent = totalDays > 0 ? Math.round((presentCount / totalDays) * 100) : 0;
+            const attendancePercent = workingDays > 0 ? Math.round((presentCount / workingDays) * 100) : 0;
             await updateDoc(doc(db, "studentData", currentEditingDocRef.id), { attendance: attendancePercent });
 
         } else if (collectionName === 'studentCourses') {

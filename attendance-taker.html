@@ -75,6 +75,11 @@
             border: none;
         }
          .alert-info {
+            background-color: rgba(13, 110, 253, 0.8);
+            color: white;
+            border: none;
+        }
+        .alert-initial {
             background-color: rgba(22, 27, 34, 0.8);
             color: #f0f6fc;
             border: 1px solid rgba(255,255,255,0.1);
@@ -96,7 +101,7 @@
         </div>
     </div>
     
-    <div id="scan-result" class="alert alert-info" role="alert">
+    <div id="scan-result" class="alert alert-initial" role="alert">
         Verifying admin access...
     </div>
     
@@ -134,9 +139,8 @@
                 const adminSnap = await getDoc(adminRef);
 
                 if (adminSnap.exists()) {
-                    // Admin verified, start the scanner
                     scannerContainer.style.display = 'block';
-                    showResult('Point the camera at a student\'s QR code.', 'info');
+                    showResult('Point the camera at a student\'s QR code.', 'initial');
                     startScanner();
                 } else {
                     showResult('Access Denied. You must be an admin to use the scanner.', 'danger');
@@ -148,7 +152,7 @@
 
         const onScanSuccess = async (result) => {
             const currentTime = Date.now();
-            if (currentTime - lastScanTime < 5000) { // 5-second cooldown
+            if (currentTime - lastScanTime < 5000) { 
                 return;
             }
             lastScanTime = currentTime;
@@ -172,12 +176,22 @@
                 const today = new Date();
                 const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
                 
+                // --- MODIFIED: Check for late arrival ---
+                const cutoffTime = new Date();
+                cutoffTime.setHours(10, 0, 0, 0); // 10:00 AM
+                const attendanceStatus = today > cutoffTime ? 'late' : 'present';
+
                 const attendanceRef = doc(db, "studentAttendance", studentId);
                 const updatePath = `records.${dateString}`;
                 
-                await updateDoc(attendanceRef, { [updatePath]: 'present' });
+                await updateDoc(attendanceRef, { [updatePath]: attendanceStatus });
                 
-                showResult(`Success! ${studentData.displayName || 'Student'} marked as present.`, 'success');
+                // --- MODIFIED: Show different success message for late vs present ---
+                if (attendanceStatus === 'late') {
+                    showResult(`Success! ${studentData.displayName || 'Student'} marked as LATE.`, 'info');
+                } else {
+                    showResult(`Success! ${studentData.displayName || 'Student'} marked as present.`, 'success');
+                }
                 
                 const updatedAttendanceSnap = await getDoc(attendanceRef);
                 const records = updatedAttendanceSnap.data().records || {};
@@ -186,7 +200,8 @@
                 for(const dateStr in records) {
                     const recordDate = new Date(dateStr + 'T00:00:00');
                     if (recordDate <= today) {
-                        if (records[dateStr] === 'present') presentCount++;
+                        // --- MODIFIED: Count 'late' as present for percentage ---
+                        if (records[dateStr] === 'present' || records[dateStr] === 'late') presentCount++;
                         if (records[dateStr] !== 'holiday') workingDays++;
                     }
                 }
@@ -220,4 +235,3 @@
     </script>
 </body>
 </html>
-
