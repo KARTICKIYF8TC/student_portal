@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Teacher Login - Student Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        :root {
+            --background-dark: #0D1117;
+            --panel-glass-bg: rgba(22, 27, 34, 0.6); 
+            --text-primary: #e0e0e0;
+            --text-secondary: #8899a6;
+            --accent-start: #58A6FF;
+            --accent-end: #3081F7;
+            --border-glow: rgba(88, 166, 255, 0.5);
+            --mouse-x: 50%;
+            --mouse-y: 50%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-dark);
+            color: var(--text-primary);
+            margin: 0;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        #bg-video {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translateX(-50%) translateY(-50%);
+            z-index: -1;
+            object-fit: cover;
+            filter: brightness(0.3);
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(88, 166, 255, 0.15), transparent 80%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .main-container-wrapper {
+            perspective: 1000px;
+            position: relative;
+            z-index: 1;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-header {
+            text-align: center;
+            padding: 3rem 1rem 2rem;
+        }
+
+        .main-header h1 {
+            font-weight: 700;
+            font-size: 2.5rem;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+        
+        .login-panel {
+            background: var(--panel-glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            will-change: transform, box-shadow;
+            width: 100%;
+            max-width: 450px;
+            position: relative; 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+            animation-delay: 0.1s;
+        }
+
+        .login-panel:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 20px var(--border-glow);
+        }
+        
+        .anim-item {
+            opacity: 0;
+            animation: anim-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        .anim-delay-1 { animation-delay: 0.3s; }
+        .anim-delay-2 { animation-delay: 0.4s; }
+        .anim-delay-3 { animation-delay: 0.5s; }
+        .anim-delay-4 { animation-delay: 0.6s; }
+        .anim-delay-5 { animation-delay: 0.7s; }
+
+        .btn {
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border: 2px solid var(--accent-start);
+            background: transparent;
+            color: var(--accent-start);
+            transition: all 0.3s ease;
+            z-index: 2;
+            position: relative;
+        }
+        .btn:hover, .btn:focus {
+            background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+            color: #fff;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(88, 166, 255, 0.3);
+        }
+
+        .form-outline { position: relative; }
+        .form-outline .form-control {
+            background-color: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            padding: 1rem;
+        }
+        .form-outline .form-control:focus {
+            box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.25);
+            border-color: var(--accent-start);
+        }
+        .form-outline .form-label {
+            position: absolute;
+            top: 50%;
+            left: 1rem;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            transition: all 0.2s ease-out;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .form-outline .form-control:focus + .form-label,
+        .form-outline .form-control:not(:placeholder-shown) + .form-label {
+            top: 0;
+            left: 0.75rem;
+            transform: translateY(-50%) scale(0.85);
+            color: var(--accent-start);
+            background-color: var(--panel-glass-bg);
+            padding: 0 0.25rem;
+        }
+        
+        .form-check-label, a.text-body {
+            color: var(--text-secondary) !important;
+            transition: color 0.3s ease;
+        }
+        a.text-body:hover {
+            color: var(--accent-start) !important;
+        }
+        .form-control.is-invalid {
+            border-color: #dc3545;
+            animation: shake 0.3s ease;
+        }
+        .error-message {
+            color: #ff7b7b;
+            font-size: 0.875em;
+            text-align: left;
+            min-height: 1.2em;
+        }
+        
+        footer { margin-top: auto; }
+
+        @keyframes anim-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { from, to { transform: translate3d(0, 0, 0); } 10%, 30%, 50%, 70%, 90% { transform: translate3d(-5px, 0, 0); } 20%, 40%, 60%, 80% { transform: translate3d(5px, 0, 0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <video autoplay loop muted playsinline id="bg-video">
+        <source src="background-video-fp.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <div class="main-container-wrapper">
+        <header class="main-header">
+            <h1 class="display-5">Teacher Portal Login</h1>
+            <p class="lead" style="color: var(--text-secondary);">Access your faculty dashboard.</p>
+        </header>
+
+        <main class="container main-content">
+            <div class="login-panel">
+                <form id="loginForm" novalidate>
+                    <div class="text-center mb-4 anim-item anim-delay-1">
+                        <h3 class="fw-bold">Welcome, Educator</h3>
+                        <p class="text">Sign in to continue</p>
+                    </div>
+                   
+                    <div class="form-outline mb-4 anim-item anim-delay-2">
+                        <input type="email" id="emailInput" class="form-control form-control-lg" placeholder=" "/>
+                        <label class="form-label" for="emailInput">Email address</label>
+                        <div id="emailError" class="error-message"></div>
+                    </div>
+
+                    <div class="form-outline mb-3 anim-item anim-delay-3">
+                        <input type="password" id="passwordInput" class="form-control form-control-lg" placeholder=" "/>
+                        <label class="form-label" for="passwordInput">Password</label>
+                        <div id="passwordError" class="error-message"></div>
+                    </div>
+
+                    <div id="authError" class="error-message text-center fw-bold mb-3"></div>
+
+                    <div class="d-flex justify-content-end align-items-center mb-4 anim-item anim-delay-4">
+                        <a href="forgotpass.html" class="text-body">Forgot password?</a>
+                    </div>
+
+                    <div class="text-center text-lg-start pt-2 anim-item anim-delay-5">
+                        <button id="submitBtn" type="submit" class="btn btn-lg w-100">Login</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+
+        <footer class="text-center py-5" style="color: var(--text-secondary);">
+            © 2025 Student Portal. All rights reserved.
+        </footer>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxkvvObHv2IuKMKlp81WVsAtm75gkWB0Y",
+            authDomain: "studentportal-eb425.firebaseapp.com",
+            projectId: "studentportal-eb425",
+            storageBucket: "studentportal-eb425.appspot.com",
+            messagingSenderId: "1021027397198",
+            appId: "1:1021027397198:web:7195716ef430ebfb359d1f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app); // Initialize Firestore
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is logged in, check if they are a teacher
+                const teacherRef = doc(db, "mentors", user.uid);
+                const teacherSnap = await getDoc(teacherRef);
+                
+                if (teacherSnap.exists()) {
+                    // They are a teacher, redirect to teacher dashboard
+                    console.log('Teacher already logged in. Redirecting...');
+                    window.location.href = 'teacher.html';
+                }
+                // If they are not a teacher, just let them stay on the login page.
+            }
+        });
+        
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const emailError = document.getElementById('emailError');
+        const passwordError = document.getElementById('passwordError');
+        const authError = document.getElementById('authError');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        function clearErrors() {
+            emailError.textContent = '';
+            passwordError.textContent = '';
+            authError.textContent = '';
+            emailInput.classList.remove('is-invalid');
+            passwordInput.classList.remove('is-invalid');
+        }
+        
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            clearErrors();
+            let isValid = true;
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+
+            if (email === '' || !emailPattern.test(email)) {
+                emailError.textContent = 'Please enter a valid email address.';
+                emailInput.classList.add('is-invalid');
+                isValid = false;
+            }
+            if (password.length < 6) {
+                passwordError.textContent = 'Password must be at least 6 characters long.';
+                passwordInput.classList.add('is-invalid');
+                isValid = false;
+            }
+            if (!isValid) return;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...';
+            
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // --- TEACHER CHECK (using 'mentors' collection) ---
+                const teacherRef = doc(db, "mentors", user.uid);
+                const teacherSnap = await getDoc(teacherRef);
+
+                if (teacherSnap.exists()) {
+                    console.log('Teacher Login Success!', user);
+                    window.location.href = 'teacher.html';
+                } else {
+                    // Not a teacher
+                    console.log('User is not a teacher. Signing out.');
+                    await signOut(auth); // Log them out immediately
+                    authError.textContent = 'Access Denied. You do not have teacher privileges.';
+                }
+                
+            } catch (error) {
+                handleAuthError(error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Login';
+            }
+        });
+
+        function handleAuthError(error) {
+            console.error("Authentication Error:", error.code, error.message);
+            switch (error.code) {
+                case 'auth/invalid-login-credentials':
+                case 'auth/user-not-found':
+                case 'auth/wrong-password':
+                    authError.textContent = 'Invalid email or password.';
+                    break;
+                case 'auth/invalid-email':
+                    emailError.textContent = 'Please enter a valid email address.';
+                    emailInput.classList.add('is-invalid');
+                    break;
+                default:
+                    authError.textContent = 'An unexpected error occurred. Please try again.';
+            }
+        }
+    </script>
+    <script>
+        document.addEventListener('mousemove', (e) => {
+          document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+          document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+        });
+
+        window.addEventListener('load', () => {
+          const video = document.getElementById('bg-video');
+          if (video) {
+            video.play().catch(error => {
+              console.error("Video autoplay failed:", error);
+            });
+          }
+        });
+    </script>
+</body>
+</html>
