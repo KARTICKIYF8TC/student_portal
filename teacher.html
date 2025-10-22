@@ -120,12 +120,10 @@
         background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f0f6fc' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
     }
 
-    /* --- THIS IS THE FIX --- */
     .form-select option {
-      background-color: #fff;
-      color: #0D1117;
+      background-color: #0D1117; /* Dark background for options */
+      color: var(--text-primary);
     }
-    /* --- END OF FIX --- */
 
     .btn-primary {
       border-radius: 8px;
@@ -173,6 +171,11 @@
         border: 1px solid var(--border-color);
         border-radius: .5rem;
     }
+    /* Routine editor styles */
+    #routine-editor-container .period-item {
+        display: flex;
+        gap: 5px;
+    }
 
     .calendar-header {
         display: flex;
@@ -199,7 +202,7 @@
     }
     .calendar-day.is-present { background-color: rgba(40, 167, 69, 0.7); color: white; }
     .calendar-day.is-absent { background-color: rgba(220, 53, 69, 0.7); color: white; }
-    .calendar-day.is-holiday { background-color: rgba(255, 193, 7, 0.7); color: black; }
+    .calendar-day.is-holiday { background-color: rgba(255, 193, 7, 0.7); color: white; }
     .calendar-day.is-late { background-color: rgba(13, 110, 253, 0.7); color: white; }
     .calendar-day.is-today {
         box-shadow: 0 0 0 2px var(--accent-start);
@@ -215,6 +218,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        color: var(--text-primary);
     }
     .legend-color {
         width: 20px;
@@ -263,6 +267,7 @@
           <a class="nav-link px-3 py-2 active" href="#/dashboard"><i class="bi bi-house-door me-2"></i>Dashboard</a>
           <a class="nav-link px-3 py-2" href="#/students"><i class="bi bi-people me-2"></i>My Students</a>
           <a class="nav-link px-3 py-2" href="#/manage-grades"><i class="bi bi-pencil-square me-2"></i>Manage Grades</a>
+          <a class="nav-link px-3 py-2" href="#/manage-routine"><i class="bi bi-calendar3-week me-2"></i>Manage Routine</a>
           <a class="nav-link px-3 py-2" href="#/view-attendance"><i class="bi bi-calendar-check me-2"></i>View Attendance</a>
           <a class="nav-link px-3 py-2" href="#/announcements"><i class="bi bi-megaphone me-2"></i>Announcements</a>
           <a class="nav-link px-3 py-2" href="#/profile"><i class="bi bi-person-circle me-2"></i>Profile</a>
@@ -283,6 +288,7 @@
             <a class="nav-link px-3 py-2 active" href="#/dashboard"><i class="bi bi-house-door me-2"></i>Dashboard</a>
             <a class="nav-link px-3 py-2" href="#/students"><i class="bi bi-people me-2"></i>My Students</a>
             <a class="nav-link px-3 py-2" href="#/manage-grades"><i class="bi bi-pencil-square me-2"></i>Manage Grades</a>
+            <a class="nav-link px-3 py-2" href="#/manage-routine"><i class="bi bi-calendar3-week me-2"></i>Manage Routine</a>
             <a class="nav-link px-3 py-2" href="#/view-attendance"><i class="bi bi-calendar-check me-2"></i>View Attendance</a>
             <a class="nav-link px-3 py-2" href="#/announcements"><i class="bi bi-megaphone me-2"></i>Announcements</a>
             <a class="nav-link px-3 py-2" href="#/profile"><i class="bi bi-person-circle me-2"></i>Profile</a>
@@ -340,6 +346,24 @@
         });
     });
     
+    const updateNavbarUI = (mentorData, user) => {
+        const userNameElement = document.getElementById('user-name');
+        const userAvatarElement = document.getElementById('user-avatar');
+        
+        if (userNameElement) {
+            const displayName = mentorData?.name || user?.email?.split('@')[0] || 'Teacher';
+            userNameElement.textContent = displayName;
+        }
+
+        if (userAvatarElement) {
+            if (mentorData?.photoBase64) {
+                userAvatarElement.src = mentorData.photoBase64;
+            } else {
+                userAvatarElement.src = 'https://placehold.co/40x40/EFEFEF/333333?text=?';
+            }
+        }
+    }
+    
     const renderTeacherDashboard = async (user, params) => {
         const studentsRef = collection(db, "studentData");
         const q = query(studentsRef, where("mentorId", "==", user.uid));
@@ -353,6 +377,7 @@
                   <div class="card-body p-4">
                     <h5 class="card-title mb-2">Welcome Back, ${currentMentorData.name || user.email.split('@')[0]}!</h5>
                     <p class="card-text mb-0 text-muted">You are currently mentoring <strong>${studentCount}</strong> ${studentCount === 1 ? 'student' : 'students'}.</p>
+                    ${currentMentorData.department ? `<p class="card-text mb-0 text-muted">You are assigned to the <strong>${currentMentorData.department}</strong> department.</p>` : ''}
                   </div>
                 </div>
               </div>
@@ -406,6 +431,7 @@
                                 <div>
                                     <h5 class="card-title mb-0">${student.displayName || 'N/A'}</h5>
                                     <p class="card-text text-muted mb-0" style="word-break: break-all;">${student.email}</p>
+                                    <span class="badge bg-info text-dark">${student.department || 'No Dept.'}</span>
                                 </div>
                             </div>
                             <small class="d-block text-center my-3" style="color: var(--accent-start);">Attendance: ${student.attendance || 0}% | SGPA: ${student.sgpa || '0.0'}</small>
@@ -583,6 +609,129 @@
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<i class="bi bi-save me-1"></i> Save Changes';
+            }
+        };
+    };
+
+    const renderManageRoutine = async (user, params) => {
+        if (!currentMentorData || !currentMentorData.department) {
+            pageContent.innerHTML = `
+                <h1 class="mb-4">Manage Routine</h1>
+                <div class="card"><div class="card-body text-center text-muted">
+                    You are not currently assigned to a department. Please contact an admin.
+                </div></div>`;
+            return;
+        }
+        
+        const department = currentMentorData.department;
+        const routineRef = doc(db, "routines", department);
+        let routineData = {};
+
+        pageContent.innerHTML = `
+            <h1 class="mb-4">Manage Routine for <span style="color: var(--accent-start);">${department}</span></h1>
+            <div class="card">
+                <div class="card-body p-4">
+                    <div class="vstack gap-3" id="routine-editor-container">${loaderHTML}</div>
+                </div>
+                <div class="card-footer d-flex justify-content-end gap-2" style="background-color: transparent; border-top: 1px solid var(--border-color);">
+                    <div id="save-alert" class="me-auto d-flex align-items-center"></div>
+                    <button type="button" class="btn btn-primary" id="save-routine-changes">
+                        <i class="bi bi-save me-1"></i> Save Routine
+                    </button>
+                </div>
+            </div>`;
+        
+        try {
+            const routineSnap = await getDoc(routineRef);
+            if (routineSnap.exists()) {
+                routineData = routineSnap.data();
+            } else {
+                routineData = { monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [] };
+                await setDoc(routineRef, routineData);
+            }
+        } catch (error) {
+            console.error("Error fetching routine:", error);
+            pageContent.innerHTML = `<div class="alert alert-danger">Error loading routine data.</div>`;
+            return;
+        }
+
+        const container = document.getElementById('routine-editor-container');
+        container.innerHTML = '';
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+        const createPeriodItem = (period = { time: '', subject: '', teacher: '' }) => {
+            const item = document.createElement('div');
+            item.className = 'period-item input-group mb-2';
+            item.innerHTML = `
+                <input type="text" class="form-control" data-field="time" placeholder="Time (e.g., 9-10)" value="${period.time}">
+                <input type="text" class="form-control" data-field="subject" placeholder="Subject" value="${period.subject}">
+                <input type="text" class="form-control" data-field="teacher" placeholder="Teacher" value="${period.teacher}">
+                <button type="button" class="btn btn-danger remove-item-btn"><i class="bi bi-trash"></i></button>
+            `;
+            item.querySelector('.remove-item-btn').onclick = () => item.remove();
+            return item;
+        };
+
+        days.forEach(day => {
+            const dayCard = document.createElement('div');
+            dayCard.className = 'card';
+            dayCard.innerHTML = `
+                <div class="card-header fw-bold text-capitalize" style="background: rgba(255,255,255,0.05);">${day}</div>
+                <div class="card-body">
+                    <div class="day-periods-list vstack gap-2" id="routine-editor-${day}"></div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2 add-period-btn" data-day="${day}">
+                        <i class="bi bi-plus-circle me-1"></i>Add Period
+                    </button>
+                </div>
+            `;
+            container.appendChild(dayCard);
+            
+            const periodsList = dayCard.querySelector(`#routine-editor-${day}`);
+            const periods = routineData[day] || [];
+            if (periods.length > 0) {
+                periods.forEach(p => periodsList.appendChild(createPeriodItem(p)));
+            }
+
+            dayCard.querySelector('.add-period-btn').onclick = () => {
+                periodsList.appendChild(createPeriodItem());
+            };
+        });
+
+        document.getElementById('save-routine-changes').onclick = async () => {
+            const saveBtn = document.getElementById('save-routine-changes');
+            const alertContainer = document.getElementById('save-alert');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+            alertContainer.innerHTML = '';
+
+            try {
+                const updatedRoutine = {};
+                days.forEach(day => {
+                    const periods = [];
+                    document.querySelectorAll(`#routine-editor-${day} .period-item`).forEach(item => {
+                        const period = {
+                            time: item.querySelector('[data-field="time"]').value,
+                            subject: item.querySelector('[data-field="subject"]').value,
+                            teacher: item.querySelector('[data-field="teacher"]').value,
+                        };
+                        if (period.time && period.subject) {
+                            periods.push(period);
+                        }
+                    });
+                    updatedRoutine[day] = periods;
+                });
+                
+                await setDoc(routineRef, updatedRoutine);
+                
+                alertContainer.innerHTML = `<span class="text-success">Saved Successfully!</span>`;
+                setTimeout(() => alertContainer.innerHTML = '', 3000);
+
+            } catch (error) {
+                console.error("Error saving routine: ", error);
+                alertContainer.innerHTML = `<span class="text-danger">Error: ${error.message}</span>`;
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-save me-1"></i> Save Routine';
             }
         };
     };
@@ -795,6 +944,10 @@
                                     <input type="tel" class="form-control" id="phone" value="${currentMentorData.phone || ''}" placeholder="Enter your phone number">
                                 </div>
                                 <div class="mb-3">
+                                    <label for="department" class="form-label">Assigned Department</label>
+                                    <input type="text" class="form-control" id="department" value="${currentMentorData.department || 'N/A'}" disabled>
+                                </div>
+                                <div class="mb-3">
                                     <label for="photoUpload" class="form-label">Change Profile Picture</label>
                                     <input class="form-control" type="file" id="photoUpload" accept="image/png, image/jpeg">
                                 </div>
@@ -861,16 +1014,15 @@
                 }
                 
                 await setDoc(mentorRef, updates, { merge: true });
-                await updateProfile(auth.currentUser, { displayName: displayNameInput.value });
-
-                currentMentorData = { ...currentMentorData, ...updates };
-                document.getElementById('user-name').textContent = updates.name;
-                if (updates.photoBase64) {
-                    document.getElementById('user-avatar').src = updates.photoBase64;
+                if (user.displayName !== displayNameInput.value) {
+                    await updateProfile(auth.currentUser, { displayName: displayNameInput.value });
                 }
 
+                currentMentorData = { ...currentMentorData, ...updates };
+                updateNavbarUI(currentMentorData, user);
+
                 alertContainer.innerHTML = '<div class="alert alert-success" style="background-color: rgba(23, 162, 184, 0.1); border-color: var(--accent-start); color: var(--text-primary);">Profile updated successfully!</div>';
-                newPhotoBase64 = null; 
+                newPhotoBase64 = null;
 
             } catch (error) {
                 console.error("Profile Update Error: ", error);
@@ -966,6 +1118,7 @@
         '/dashboard': { title: 'Dashboard', render: renderTeacherDashboard },
         '/students': { title: 'My Students', render: renderStudents },
         '/manage-grades': { title: 'Manage Grades', render: renderManageGrades },
+        '/manage-routine': { title: 'Manage Routine', render: renderManageRoutine },
         '/view-attendance': { title: 'View Attendance', render: renderViewAttendance },
         '/announcements': { title: 'Announcements', render: renderAnnouncements },
         '/profile': { title: 'Profile', render: renderTeacherProfile },
@@ -981,13 +1134,18 @@
         pageTitle.textContent = route.title;
         pageContent.innerHTML = loaderHTML; 
         
-        if(currentUser) {
-            await route.render(currentUser, params);
+        if(currentUser && currentMentorData) {
+             try {
+                await route.render(currentUser, params);
+             } catch (renderError) {
+                 console.error(`Error rendering route ${path}:`, renderError);
+                 pageContent.innerHTML = `<div class="alert alert-danger">Error loading page content. Please check the console.</div>`;
+             }
         }
 
         document.querySelectorAll('#desktop-nav a, #mobile-nav a').forEach(a => {
             a.classList.remove('active');
-            if (a.getAttribute('href').startsWith(`#${path}`)) { 
+            if (a.getAttribute('href') && a.getAttribute('href').startsWith(`#${path}`)) { 
                 a.classList.add('active'); 
             }
         });
@@ -998,32 +1156,55 @@
     window.addEventListener('load', () => { 
         if (!window.location.hash) { 
             window.location.hash = '#/dashboard'; 
-        } else {
-            router(); 
         }
     });
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
+            currentUser = user;
             const mentorRef = doc(db, "mentors", user.uid);
-            const mentorSnap = await getDoc(mentorRef);
+            let mentorSnap;
+            let fetchedData;
 
-            if (mentorSnap.exists()) {
-                currentUser = user;
-                currentMentorData = mentorSnap.data();
-                
-                document.getElementById('user-name').textContent = currentMentorData.name || user.email.split('@')[0];
-                if (currentMentorData.photoBase64) {
-                    document.getElementById('user-avatar').src = currentMentorData.photoBase64;
+            try {
+                mentorSnap = await getDoc(mentorRef);
+
+                if (mentorSnap.exists()) {
+                    fetchedData = mentorSnap.data();
+                } else {
+                    fetchedData = {
+                        name: user.displayName || user.email.split('@')[0],
+                        email: user.email,
+                        phone: "",
+                        department: null,
+                        photoBase64: null
+                    };
+                    
+                    try {
+                        await setDoc(mentorRef, fetchedData);
+                    } catch (error) {
+                        console.error("!!! Critical Error creating mentor document:", error);
+                        alert(`Error setting up your teacher profile: ${error.message}. Please contact admin.`);
+                        await signOut(auth);
+                        window.location.href = 'index.html';
+                        return; 
+                    }
                 }
-
+                
+                currentMentorData = fetchedData; 
+                updateNavbarUI(currentMentorData, user);
                 router(); 
-            } else {
-                console.error("Access Denied. User is not a mentor.");
-                await signOut(auth);
-                window.location.href = 'index.html'; 
+                
+            } catch (error) {
+                 console.error("Error during mentor data fetch/creation process:", error);
+                 await signOut(auth);
+                 window.location.href = 'index.html';
+                 return;
             }
+            
         } else { 
+             currentUser = null;
+             currentMentorData = null;
             window.location.href = 'index.html'; 
         }
     });

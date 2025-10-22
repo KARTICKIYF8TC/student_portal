@@ -192,8 +192,7 @@
     }
     .calendar-day.is-present { background-color: rgba(40, 167, 69, 0.7); color: white; }
     .calendar-day.is-absent { background-color: rgba(220, 53, 69, 0.7); color: white; }
-    .calendar-day.is-holiday { background-color: rgba(255, 193, 7, 0.7); color: black; }
-    /* --- NEW: Style for late days --- */
+    .calendar-day.is-holiday { background-color: rgba(255, 193, 7, 0.7); color: white; }
     .calendar-day.is-late { background-color: rgba(13, 110, 253, 0.7); color: white; }
     .calendar-day.is-today {
         box-shadow: 0 0 0 2px var(--accent-start);
@@ -209,11 +208,34 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        color: var(--text-primary);
     }
     .legend-color {
         width: 20px;
         height: 20px;
         border-radius: 50%;
+    }
+
+    .nav-tabs {
+        border-bottom-color: var(--border-color);
+    }
+    .nav-tabs .nav-link {
+        color: var(--text-secondary);
+        border: none;
+        border-bottom: 3px solid transparent;
+    }
+    .nav-tabs .nav-link.active, .nav-tabs .nav-link:hover {
+        color: var(--accent-start);
+        background-color: transparent;
+        border-bottom-color: var(--accent-start);
+    }
+    .list-group-item {
+        background-color: transparent;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-primary);
+    }
+    .list-group-item:last-child {
+        border-bottom: none;
     }
 
     @keyframes fadeInUp {
@@ -283,6 +305,7 @@
           <a class="nav-link px-3 py-2" href="#/assignments"><i class="bi bi-journal-text me-2"></i>Assignments</a>
           <a class="nav-link px-3 py-2" href="#/grades"><i class="bi bi-bar-chart-line me-2"></i>Grades</a>
           <a class="nav-link px-3 py-2" href="#/attendance"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+          <a class="nav-link px-3 py-2" href="#/routine"><i class="bi bi-calendar3-week me-2"></i>My Routine</a>
           <a class="nav-link px-3 py-2" href="#/announcements"><i class="bi bi-megaphone me-2"></i>Announcements</a>
           <a class="nav-link px-3 py-2" href="#/profile"><i class="bi bi-person-circle me-2"></i>Profile</a>
           <a class="nav-link px-3 py-2" href="#/contact"><i class="bi bi-person-rolodex me-2"></i>Contact Us</a>
@@ -305,6 +328,7 @@
             <a class="nav-link px-3 py-2" href="#/assignments"><i class="bi bi-journal-text me-2"></i>Assignments</a>
             <a class="nav-link px-3 py-2" href="#/grades"><i class="bi bi-bar-chart-line me-2"></i>Grades</a>
             <a class="nav-link px-3 py-2" href="#/attendance"><i class="bi bi-calendar-check me-2"></i>Attendance</a>
+            <a class="nav-link px-3 py-2" href="#/routine"><i class="bi bi-calendar3-week me-2"></i>My Routine</a>
             <a class="nav-link px-3 py-2" href="#/announcements"><i class="bi bi-megaphone me-2"></i>Announcements</a>
             <a class="nav-link px-3 py-2" href="#/profile"><i class="bi bi-person-circle me-2"></i>Profile</a>
             <a class="nav-link px-3 py-2" href="#/contact"><i class="bi bi-person-rolodex me-2"></i>Contact Us</a>
@@ -343,6 +367,7 @@
     const pageContent = document.getElementById('page-content');
     const pageTitle = document.getElementById('page-title');
     let currentUser = null;
+    let currentStudentData = null;
     
     const loaderHTML = `
         <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
@@ -363,15 +388,12 @@
         });
     });
 
-    const renderDashboard = async (user) => {
-        const studentDataRef = doc(db, "studentData", user.uid);
-        let studentSnap = await getDoc(studentDataRef);
-        const studentData = studentSnap.data();
-
+    const renderDashboard = async (user, studentData) => {
         pageContent.innerHTML = `
             <div class="row g-4">
               <div class="col-md-7"><div class="card h-100"><div class="card-body p-4">
                     <h5 class="card-title mb-2">Welcome Back, ${studentData.displayName || user.email.split('@')[0]}!</h5>
+                    ${studentData.department ? `<p class="card-text mb-0 text-muted">You are in the <strong>${studentData.department}</strong> department.</p>` : '<p class="card-text mb-0 text-muted">You are not yet assigned to a department.</p>'}
                     <p class="card-text mb-0 text-muted">You are enrolled in <strong>${studentData.activeCourses}</strong> active courses.</p>
               </div></div></div>
               <div class="col-md-5"><div class="card h-100"><div class="card-body p-4">
@@ -390,7 +412,7 @@
             </div>`;
     };
     
-    const renderAttendance = async (user) => {
+    const renderAttendance = async (user, studentData) => {
         const attendanceRef = doc(db, "studentAttendance", user.uid);
         const holidayRef = doc(db, "globalData", "holidays");
 
@@ -491,7 +513,7 @@
                     dayClass += ' is-present';
                 } else if (status === 'absent') {
                     dayClass += ' is-absent';
-                } else if (status === 'late') { // --- MODIFIED: Check for late status ---
+                } else if (status === 'late') {
                     dayClass += ' is-late';
                 }
                 
@@ -502,7 +524,6 @@
                 calendarHTML += `<div class="${dayClass}">${day}</div>`;
             }
 
-            // --- MODIFIED: Added Late to legend ---
             calendarHTML += `</div>
                 <div class="legend">
                     <div class="legend-item"><span class="legend-color" style="background-color: rgba(40, 167, 69, 0.7);"></span> Present</div>
@@ -540,7 +561,7 @@
                 return `<div class="card">
                             <div class="card-body">
                                 <p class="card-text fs-5">${notice.text}</p>
-                                <small class="text-muted">Posted on ${postDate.toLocaleDateString()} at ${postDate.toLocaleTimeString()}</small>
+                                <small class="text-muted">Posted by ${notice.authorName || 'Staff'} on ${postDate.toLocaleDateString()} at ${postDate.toLocaleTimeString()}</small>
                             </div>
                         </div>`;
             }).join('');
@@ -552,10 +573,7 @@
             </div></div>`;
     };
 
-    const renderProfile = async (user) => {
-        const studentDocRef = doc(db, "studentData", user.uid);
-        const studentSnap = await getDoc(studentDocRef);
-        const studentData = studentSnap.data();
+    const renderProfile = async (user, studentData) => {
         const photo = studentData?.photoBase64 || 'https://placehold.co/120x120/EFEFEF/333333?text=?';
 
         pageContent.innerHTML = `
@@ -574,6 +592,10 @@
                                         <div class="mb-3">
                                             <label for="email" class="form-label">Email Address</label>
                                             <input type="email" class="form-control" id="email" value="${user.email}" disabled>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="department" class="form-label">Department</label>
+                                            <input type="text" class="form-control" id="department" value="${studentData.department || 'N/A'}" disabled>
                                         </div>
                                         <div class="mb-3">
                                             <label for="photoUpload" class="form-label">Change Profile Picture</label>
@@ -653,6 +675,9 @@
                 }
                 await setDoc(studentDataRef, updates, { merge: true });
 
+                // Update the globally stored student data
+                currentStudentData = {...currentStudentData, ...updates};
+
                 document.getElementById('user-name').textContent = displayNameInput.value;
                 alertContainer.innerHTML = '<div class="alert alert-success" style="background-color: rgba(168, 85, 247, 0.1); border-color: var(--accent-start); color: var(--text-primary);">Profile updated successfully!</div>';
 
@@ -666,7 +691,7 @@
         });
     };
     
-    const renderCourses = async (user) => {
+    const renderCourses = async (user, studentData) => {
         const studentCoursesRef = doc(db, "studentCourses", user.uid);
         const docSnap = await getDoc(studentCoursesRef);
         
@@ -692,7 +717,7 @@
             <div id="courses-container" class="row g-4">${coursesHTML}</div>`;
     };
 
-    const renderGrades = async (user) => {
+    const renderGrades = async (user, studentData) => {
         const gradesRef = doc(db, "studentGrades", user.uid);
         const gradesSnap = await getDoc(gradesRef);
 
@@ -769,11 +794,8 @@
         `;
     };
     
-    const renderContact = async (user) => {
-        const studentDocRef = doc(db, "studentData", user.uid);
-        const studentSnap = await getDoc(studentDocRef);
-
-        if (!studentSnap.exists() || !studentSnap.data().mentorId) {
+    const renderContact = async (user, studentData) => {
+        if (!studentData || !studentData.mentorId) {
             pageContent.innerHTML = `
                 <div class="row justify-content-center">
                     <div class="col-lg-8">
@@ -787,7 +809,7 @@
             return;
         }
 
-        const mentorId = studentSnap.data().mentorId;
+        const mentorId = studentData.mentorId;
         const mentorRef = doc(db, "mentors", mentorId);
         const mentorSnap = await getDoc(mentorRef);
 
@@ -816,12 +838,100 @@
                         <div class="card-body p-4 text-center">
                             <img src="${photo}" alt="Mentor Picture" class="mentor-avatar mb-3">
                             <h2 class="card-title">${mentor.name}</h2>
+                            ${mentor.department ? `<p class="fs-5 text-muted">(${mentor.department} Department)</p>` : ''}
                             <hr style="border-color: var(--border-color);">
                             <div class="text-start mt-4">
                                 <p class="fs-5"><i class="bi bi-envelope-at me-3"></i><a href="mailto:${mentor.email}" class="text-decoration-none" style="color: var(--text-primary);">${mentor.email}</a></p>
-                                <p class="fs-5"><i class="bi bi-telephone me-3"></i><a href="tel:${mentor.phone}" class="text-decoration-none" style="color: var(--text-primary);">${mentor.phone}</a></p>
+                                <p class="fs-5"><i class="bi bi-telephone me-3"></i><a href="tel:${mentor.phone}" class="text-decoration-none" style="color: var(--text-primary);">${mentor.phone || 'N/A'}</a></p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
+    const renderRoutine = async (user, studentData) => {
+        const studentDepartment = studentData.department;
+        
+        if (!studentDepartment) {
+            pageContent.innerHTML = `
+                <h1 class="mb-4">My Routine</h1>
+                <div class="card"><div class="card-body text-center text-muted">
+                    You are not currently assigned to a department. Please contact an admin to see your routine.
+                </div></div>`;
+            return;
+        }
+        
+        pageContent.innerHTML = `<h1 class="mb-4">My Routine</h1>${loaderHTML}`;
+
+        let routineData;
+        try {
+            const routineRef = doc(db, "routines", studentDepartment);
+            const routineSnap = await getDoc(routineRef);
+            if (routineSnap.exists()) {
+                routineData = routineSnap.data();
+            } else {
+                    pageContent.innerHTML = `
+                    <h1 class="mb-4">My Routine</h1>
+                    <div class="card"><div class="card-body text-center text-muted">
+                        The routine for <strong>${studentDepartment}</strong> has not been published yet.
+                    </div></div>`;
+                return;
+            }
+        } catch (error) {
+                pageContent.innerHTML = `<h1 class="mb-4">My Routine</h1><div class="alert alert-danger">Error loading routine.</div>`;
+            return;
+        }
+
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        
+        let navTabsHTML = '';
+        let tabContentHTML = '';
+
+        days.forEach((day, index) => {
+            const active = index === 0 ? 'active' : '';
+            const dayCapitalized = day.charAt(0).toUpperCase() + day.slice(1);
+            
+            navTabsHTML += `
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ${active}" id="tab-${day}" data-bs-toggle="tab" data-bs-target="#panel-${day}" type="button" role="tab" aria-controls="panel-${day}" aria-selected="${index === 0}">${dayCapitalized}</button>
+                </li>`;
+            
+            const periods = routineData[day] || [];
+            let periodsHTML = '';
+            if (periods.length === 0) {
+                periodsHTML = '<p class="text-muted mt-3 p-3">No classes scheduled for today.</p>';
+            } else {
+                periodsHTML = periods.map(p => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong class="d-block">${p.subject}</strong>
+                            <small class="text-muted">${p.teacher}</small>
+                        </div>
+                        <span class="badge rounded-pill" style="background-color: var(--accent-start); color: white; font-size: 0.9em;">${p.time}</span>
+                    </li>
+                `).join('');
+                periodsHTML = `<ul class="list-group list-group-flush">${periodsHTML}</ul>`;
+            }
+
+            tabContentHTML += `
+                <div class="tab-pane fade show ${active}" id="panel-${day}" role="tabpanel" aria-labelledby="tab-${day}" tabindex="0">
+                    ${periodsHTML}
+                </div>`;
+        });
+
+        pageContent.innerHTML = `
+            <h1 class="mb-4">My Routine (${studentDepartment})</h1>
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="routineTab" role="tablist">
+                        ${navTabsHTML}
+                    </ul>
+                </div>
+                <div class="card-body p-0">
+                    <div class="tab-content" id="routineTabContent">
+                        ${tabContentHTML}
                     </div>
                 </div>
             </div>
@@ -841,18 +951,22 @@
         '/profile': { title: 'Profile', render: renderProfile },
         '/grades': { title: 'Grades', render: renderGrades },
         '/attendance': { title: 'Attendance', render: renderAttendance },
+        '/routine': { title: 'My Routine', render: renderRoutine },
         '/contact': { title: 'Contact Us', render: renderContact },
         '/assignments': { title: 'Assignments', render: () => renderComingSoon('Assignments') },
     };
 
     const router = async () => {
-        const path = window.location.hash.substring(1) || '/dashboard';
+        const fullHash = window.location.hash.substring(1); 
+        const [path, queryString] = fullHash.split('?'); 
         const route = routes[path] || routes['/dashboard'];
         
         pageTitle.textContent = route.title;
         pageContent.innerHTML = loaderHTML;
         
-        if(currentUser) await route.render(currentUser);
+        if(currentUser && currentStudentData) {
+            await route.render(currentUser, currentStudentData);
+        }
 
         document.querySelectorAll('#desktop-nav a, #mobile-nav a').forEach(a => {
             a.classList.remove('active');
@@ -861,54 +975,82 @@
     };
 
     window.addEventListener('hashchange', router);
-    window.addEventListener('load', () => { if (!window.location.hash) { window.location.hash = '#/dashboard'; } });
+    window.addEventListener('load', () => { 
+        if (!window.location.hash) { 
+            window.location.hash = '#/dashboard'; 
+        } else {
+            router();
+        }
+    });
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             
-            const studentDataRef = doc(db, "studentData", user.uid);
-            let studentSnap = await getDoc(studentDataRef);
-            if (!studentSnap.exists() || !studentSnap.data().qrCodeValue) {
-                 await setDoc(studentDataRef, { 
-                    email: user.email, 
-                    displayName: user.displayName || user.email.split('@')[0],
-                    qrCodeValue: user.uid,
-                    activeCourses: 0, 
-                    assignmentsDue: 0, 
-                    credits: 0, 
-                    attendance: 0, 
-                    sgpa: 0.0, 
-                    messages: 0,
-                    mentorId: null
-                }, { merge: true });
-            }
-            
-            const studentCoursesRef = doc(db, "studentCourses", user.uid);
-            let coursesSnap = await getDoc(studentCoursesRef);
-            if (!coursesSnap.exists()) {
-                await setDoc(studentCoursesRef, { email: user.email, list: [] });
-            }
-            const studentGradesRef = doc(db, "studentGrades", user.uid);
-            let gradesSnap = await getDoc(studentGradesRef);
-            if (!gradesSnap.exists()) {
-                await setDoc(studentGradesRef, { email: user.email, grades: [] });
-            }
-            const studentAttendanceRef = doc(db, "studentAttendance", user.uid);
-            let attendanceSnap = await getDoc(studentAttendanceRef);
-            if (!attendanceSnap.exists()) {
-                await setDoc(studentAttendanceRef, { email: user.email, records: {} });
-            }
+            // --- MODIFIED: Robust document creation logic ---
+            try {
+                const studentDataRef = doc(db, "studentData", user.uid);
+                const studentCoursesRef = doc(db, "studentCourses", user.uid);
+                const studentGradesRef = doc(db, "studentGrades", user.uid);
+                const studentAttendanceRef = doc(db, "studentAttendance", user.uid);
 
-            const freshStudentSnap = await getDoc(studentDataRef);
-            const studentData = freshStudentSnap.data();
-            document.getElementById('user-name').textContent = studentData.displayName || user.email.split('@')[0];
-            if (studentData && studentData.photoBase64) {
-                document.getElementById('user-avatar').src = studentData.photoBase64;
-            }
+                // Fetch all documents at once for efficiency
+                const [studentDataSnap, coursesSnap, gradesSnap, attendanceSnap] = await Promise.all([
+                    getDoc(studentDataRef),
+                    getDoc(studentCoursesRef),
+                    getDoc(studentGradesRef),
+                    getDoc(studentAttendanceRef)
+                ]);
+                
+                // Check and create each document individually if it's missing
+                if (!studentDataSnap.exists()) {
+                    await setDoc(studentDataRef, { 
+                        email: user.email, 
+                        displayName: user.displayName || user.email.split('@')[0],
+                        qrCodeValue: user.uid,
+                        activeCourses: 0, 
+                        assignmentsDue: 0, 
+                        credits: 0, 
+                        attendance: 0, 
+                        sgpa: 0.0, 
+                        messages: 0,
+                        mentorId: null,
+                        department: null
+                    });
+                }
+                if (!coursesSnap.exists()) {
+                    await setDoc(studentCoursesRef, { email: user.email, list: [] });
+                }
+                if (!gradesSnap.exists()) {
+                    await setDoc(studentGradesRef, { email: user.email, grades: [] });
+                }
+                if (!attendanceSnap.exists()) {
+                    await setDoc(studentAttendanceRef, { email: user.email, records: {} });
+                }
 
-            router();
-        } else { window.location.href = 'login.html'; }
+                // Now that we're sure all documents exist, get the final student data
+                const finalStudentSnap = await getDoc(studentDataRef);
+                currentStudentData = finalStudentSnap.data();
+
+                // Update UI elements
+                document.getElementById('user-name').textContent = currentStudentData.displayName || user.email.split('@')[0];
+                if (currentStudentData.photoBase64) {
+                    document.getElementById('user-avatar').src = currentStudentData.photoBase64;
+                }
+
+                // Trigger the router which uses the pre-fetched data
+                router();
+            } catch (error) {
+                console.error("Error during initial student setup:", error);
+                pageContent.innerHTML = `<div class="alert alert-danger">There was an error setting up your account. Please refresh the page or contact support.</div>`;
+            }
+            // --- End of modification ---
+
+        } else { 
+            currentUser = null;
+            currentStudentData = null;
+            window.location.href = 'login.html'; 
+        }
     });
 
     const handleLogout = () => { signOut(auth).then(() => { window.location.href = 'index.html'; }); };
