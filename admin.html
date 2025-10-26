@@ -140,7 +140,7 @@
     .btn-primary {
       background-color: var(--accent-primary);
       border-color: var(--accent-primary);
-      color: var(--text-primary);
+      /* color: var(--text-primary); */
     }
     .btn-primary:hover, .btn-primary:focus {
       background-color: var(--accent-hover);
@@ -211,7 +211,8 @@
 
 
     #course-editor .course-item,
-    #grade-editor .grade-item {
+    #grade-editor .grade-item,
+    #subjects-editor .subject-item {
         display: flex;
         gap: 10px;
         align-items: flex-start;
@@ -254,6 +255,13 @@
         color: var(--text-primary); 
         font-weight: bold;
     }
+
+    .bg-dark {
+    --bs-bg-opacity: 1;
+    background-color: #dee2e6 !important;
+}
+
+
     .admin-calendar-day.is-present { background-color: #16A34A; color: white; }
     .admin-calendar-day.is-absent { background-color: #DC2626; color: white; }
     .admin-calendar-day.is-late { background-color: #2563EB; color: white; }
@@ -472,6 +480,73 @@
     </div>
   </div>
 </div>
+<div class="modal fade" id="createCoursesModal" tabindex="-1" aria-labelledby="createCoursesModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createCoursesModalLabel">Create Department Courses</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-courses-form">
+            <div class="mb-3">
+                <label for="courses-dept-name" class="form-label">Department Name</label>
+                <input type="text" class="form-control" id="courses-dept-name" required placeholder="e.g., BBA, BCA (must be exact)">
+            </div>
+             <p class="text-secondary small">You can add subjects to this department after creating it.</p>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-new-courses">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="createAssignmentModal" tabindex="-1" aria-labelledby="createAssignmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createAssignmentModalLabel">Create New Assignment</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-assignment-form">
+            <div class="mb-3">
+                <label for="assignment-title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="assignment-title" required>
+            </div>
+            <div class="mb-3">
+                <label for="assignment-description" class="form-label">Description</label>
+                <textarea class="form-control" id="assignment-description" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="assignment-department" class="form-label">Department</label>
+                <select id="assignment-department" class="form-select" required>
+                    <option value="">-- Select --</option>
+                    <option value="BBA">BBA</option>
+                    <option value="BCA">BCA</option>
+                    <option value="BHM">BHM</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="assignment-subject-code" class="form-label">Subject Code</label>
+                <input type="text" class="form-control" id="assignment-subject-code" required placeholder="e.g., BCA101">
+            </div>
+            <div class="mb-3">
+                <label for="assignment-due-date" class="form-label">Due Date</label>
+                <input type="date" class="form-control" id="assignment-due-date" required>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="save-new-assignment">Create Assignment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -525,6 +600,12 @@
 
     const createRoutineModalEl = new bootstrap.Modal(document.getElementById('createRoutineModal'));
     const saveNewRoutineBtn = document.getElementById('save-new-routine');
+
+    const createCoursesModalEl = new bootstrap.Modal(document.getElementById('createCoursesModal'));
+    const saveNewCoursesBtn = document.getElementById('save-new-courses');
+
+    const createAssignmentModalEl = new bootstrap.Modal(document.getElementById('createAssignmentModal'));
+    const saveNewAssignmentBtn = document.getElementById('save-new-assignment');
     
     const logoutBtnDesktop = document.getElementById('logout-btn-desktop');
     const logoutBtnMobile = document.getElementById('logout-btn-mobile');
@@ -647,7 +728,7 @@
     });
 
     async function discoverAndLoadCollections() {
-        const collectionNames = ['studentData', 'studentCourses', 'studentGrades', 'studentAttendance', 'notices', 'mentors', 'routines']; 
+        const collectionNames = ['studentData', 'mentors', 'courses', 'assignments', 'studentCourses', 'studentGrades', 'studentAttendance', 'notices', 'routines']; 
         
         const createNavLinks = (container) => {
             container.innerHTML = '';
@@ -704,9 +785,23 @@
             addBtn.innerHTML = '<i class="bi bi-calendar-plus me-2"></i>Create Department Routine';
             addBtn.onclick = () => createRoutineModalEl.show();
             collectionActions.appendChild(addBtn);
+        } else if (collectionName === 'courses') {
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn btn-primary';
+            addBtn.innerHTML = '<i class="bi bi-book me-2"></i>Create Department Courses';
+            addBtn.onclick = () => createCoursesModalEl.show();
+            collectionActions.appendChild(addBtn);
+        } else if (collectionName === 'assignments') {
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn btn-primary';
+            addBtn.innerHTML = '<i class="bi bi-journal-plus me-2"></i>Create Assignment';
+            addBtn.onclick = () => createAssignmentModalEl.show();
+            collectionActions.appendChild(addBtn);
         }
 
-        if (['studentData', 'mentors', 'studentCourses', 'studentGrades', 'studentAttendance'].includes(collectionName)) {
+
+
+        if (['studentData', 'mentors', 'studentCourses', 'studentGrades', 'studentAttendance', 'assignments'].includes(collectionName)) {
             const filters = ['All', 'Not Assigned', 'BBA', 'BCA', 'BHM'];
             const filterButtonsHTML = `
                 <div class="btn-group" role="group" aria-label="Department Filters">
@@ -738,7 +833,7 @@
         let filteredDocs = snapshot.docs;
 
         if (departmentFilter !== 'All') {
-            if (['studentData', 'mentors'].includes(collectionName)) {
+             if (['studentData', 'mentors', 'assignments'].includes(collectionName)) {
                 filteredDocs = snapshot.docs.filter(docSnap => {
                     const docData = docSnap.data();
                     if (departmentFilter === 'Not Assigned') return !docData.department;
@@ -777,6 +872,8 @@
         else if (collectionName === 'studentAttendance') headers = ['Photo', 'Name', 'Email', 'Records', 'Actions'];
         else if (collectionName === 'mentors') headers = ['Photo', 'Name', 'Email', 'Phone', 'Department', 'Actions'];
         else if (collectionName === 'routines') headers = ['Department', 'Days Defined', 'Actions'];
+        else if (collectionName === 'courses') headers = ['Department', 'Subjects Count', 'Actions'];
+        else if (collectionName === 'assignments') headers = ['Title', 'Department', 'Subject Code', 'Due Date', 'Actions'];
         else { const firstDocData = filteredDocs[0]?.data(); headers = ['Document ID', ...(firstDocData ? Object.keys(firstDocData) : []), 'Actions']; }
         headers.forEach(text => headerRow.appendChild(document.createElement('th')).textContent = text);
 
@@ -846,7 +943,17 @@
                 const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                 const daysDefined = Object.keys(docData).filter(key => days.includes(key)).length;
                 row.insertCell().textContent = `${daysDefined} / 6`;
-            } else {
+            } else if (collectionName === 'courses') {
+                row.insertCell().textContent = docSnap.id; // Department name
+                row.insertCell().textContent = docData.subjects ? docData.subjects.length : 0;
+            } else if (collectionName === 'assignments') {
+                row.insertCell().textContent = docData.title || 'N/A';
+                row.insertCell().textContent = docData.department || 'N/A';
+                row.insertCell().textContent = docData.subjectCode || 'N/A';
+                // **FIXED LINE**
+                row.insertCell().textContent = (docData.dueDate && docData.dueDate.toDate) ? docData.dueDate.toDate().toLocaleDateString() : 'N/A';
+            }
+            else {
                 row.insertCell().textContent = docSnap.id;
                 const headerKeys = headers.slice(1, -1);
                 headerKeys.forEach(key => {
@@ -899,14 +1006,22 @@
                 cardBody.prepend(actionsWrapper);
                 actionsWrapper.classList.add('mb-2', 'w-100', 'justify-content-end');
 
-            } else if (collectionName === 'routines') {
+            } else if (collectionName === 'routines' || collectionName === 'courses') {
                  cardBody.className = 'card-body d-flex align-items-center justify-content-between gap-3';
                  const textWrapper = document.createElement('div');
                  textWrapper.className = 'flex-grow-1';
                  textWrapper.innerHTML = `<h6 class="card-title mb-0">Department: <span class="fw-bold">${docSnap.id}</span></h6>`;
                  cardBody.appendChild(textWrapper);
                  cardBody.appendChild(actionsWrapper);
-            } else { // Default mobile card for all other collections
+            } else if (collectionName === 'assignments') {
+                 cardBody.className = 'card-body d-flex align-items-center justify-content-between gap-3';
+                 const textWrapper = document.createElement('div');
+                 textWrapper.className = 'flex-grow-1';
+                 textWrapper.innerHTML = `<h6 class="card-title mb-0">${docData.title}</h6><p class="card-subtitle text-muted">${docData.department} - ${docData.subjectCode}</p>`;
+                 cardBody.appendChild(textWrapper);
+                 cardBody.appendChild(actionsWrapper);
+            }
+            else { // Default mobile card for all other collections
                 cardBody.className = 'card-body d-flex align-items-center gap-3';
                 const studentInfo = studentDataMap.get(docSnap.id);
                 const photoSrc = docData.photoBase64 || (studentInfo && studentInfo.photoBase64) || 'https://placehold.co/40x40/374151/F9FAFB?text=?';
@@ -934,15 +1049,13 @@
         tableResponsiveDiv.appendChild(table);
         documentsTableContainerDesktop.appendChild(tableResponsiveDiv);
     }
-    
-    // --- All other functions remain unchanged ---
-    
+        
     async function openEditModal(docSnap) {
         currentEditingDocRef = docSnap.ref;
         const data = docSnap.data();
         const collectionName = docSnap.ref.parent.id;
         
-        document.getElementById('editDocModalLabel').textContent = `Editing: ${data.email || data.name || docSnap.id}`;
+        document.getElementById('editDocModalLabel').textContent = `Editing: ${data.email || data.name || data.title || docSnap.id}`;
         
         editDocFormBody.innerHTML = '<form id="modalEditForm" autocomplete="off"></form>';
         const formContainer = document.getElementById('modalEditForm');
@@ -950,7 +1063,7 @@
         if (collectionName === 'studentData') {
             await renderStudentDataEditor(data, formContainer);
         } else if (collectionName === 'studentCourses') {
-            renderCourseEditor(data.list || [], formContainer);
+            renderCourseEditor(data.list || [], formContainer, "studentCourses");
         } else if (collectionName === 'studentGrades') {
             renderGradeEditor(data.grades || [], formContainer);
         } else if (collectionName === 'studentAttendance') {
@@ -969,6 +1082,8 @@
             renderAttendanceEditor(formContainer);
         } else if (collectionName === 'routines') {
             renderRoutineEditor(data, docSnap.id, formContainer);
+        } else if (collectionName === 'courses') {
+            renderCourseEditor(data.subjects || [], formContainer, "courses");
         } else {
             renderGenericEditor(data, collectionName, formContainer);
         }
@@ -978,7 +1093,7 @@
     function renderGenericEditor(data, collectionName, container) {
         container.innerHTML = '';
         for (const key in data) {
-            if (key === 'photoBase64' || (collectionName === 'studentData' && key === 'mentorId')) continue;
+            if (key === 'photoBase64' || (collectionName === 'studentData' && key === 'mentorId') || key === 'submissions' || key === 'createdAt') continue;
 
             const value = data[key];
             const inputId = `edit-${key}`;
@@ -993,9 +1108,16 @@
             formGroup.appendChild(label);
             
             let input;
-            const isReadOnly = (collectionName === 'studentData' && ['sgpa', 'credits', 'email', 'attendance', 'qrCodeValue'].includes(key)) || (value && typeof value.toDate === 'function');
+            const isReadOnly = (collectionName === 'studentData' && ['sgpa', 'credits', 'email', 'attendance', 'qrCodeValue'].includes(key)) || (value && typeof value.toDate === 'function' && key !== 'dueDate');
 
-            if (key === 'department' && (collectionName === 'studentData' || collectionName === 'mentors')) {
+             if (key === 'dueDate' && value && typeof value.toDate === 'function') {
+                input = document.createElement('input');
+                input.type = 'date';
+                input.className = 'form-control';
+                const date = value.toDate();
+                // Format date as YYYY-MM-DD for input value
+                input.value = date.getFullYear() + '-' + ('0' + (date.getMonth() + 1)).slice(-2) + '-' + ('0' + date.getDate()).slice(-2);
+            } else if (key === 'department' && (collectionName === 'studentData' || collectionName === 'mentors' || collectionName === 'assignments')) {
                 const depts = ['BBA', 'BCA', 'BHM'];
                 let optionsHTML = `<option value="" ${!value ? 'selected' : ''}>-- None --</option>` + depts.map(d => `<option value="${d}" ${value === d ? 'selected' : ''}>${d}</option>`).join('');
                 input = document.createElement('select');
@@ -1005,20 +1127,22 @@
                 input = document.createElement('input');
                 input.type = 'number';
                 input.className = 'form-control';
-            } else if (key === 'text' && typeof value === 'string' && value.length > 100) {
+                 input.value = value;
+            } else if ((key === 'text' || key === 'description') && typeof value === 'string' && value.length > 50) {
                  input = document.createElement('textarea');
                  input.rows = 4;
                  input.className = 'form-control';
+                 input.value = value;
             } else {
                  input = document.createElement('input');
                  input.type = 'text';
                  input.className = 'form-control';
+                 input.value = (value && typeof value.toDate === 'function') ? value.toDate().toLocaleString() : value;
             }
             
             if (isReadOnly) input.disabled = true;
             input.id = inputId;
-            input.value = (value && typeof value.toDate === 'function') ? value.toDate().toLocaleString() : value;
-            
+
             formGroup.appendChild(input);
             container.appendChild(formGroup);
         }
@@ -1045,38 +1169,42 @@
         container.appendChild(formGroup);
     }
     
-    function renderCourseEditor(courses, container) {
+    function renderCourseEditor(items, container, type) {
+        const title = type === "courses" ? "Subjects for Department" : "Enrolled Courses";
+        const buttonText = type === "courses" ? "Add Subject" : "Add Course";
+        const editorId = type === "courses" ? "subjects-editor" : "course-editor";
+
         container.innerHTML = `
-            <div id="course-editor">
-                <h5 class="mb-3">Enrolled Courses</h5>
-                <div id="course-list" class="vstack gap-3"></div>
-                <button type="button" class="btn btn-success btn-sm mt-3" id="add-course-btn"><i class="bi bi-plus-circle me-1"></i>Add Course</button>
+            <div id="${editorId}">
+                <h5 class="mb-3">${title}</h5>
+                <div id="item-list" class="vstack gap-3"></div>
+                <button type="button" class="btn btn-success btn-sm mt-3" id="add-item-btn"><i class="bi bi-plus-circle me-1"></i>${buttonText}</button>
             </div>
         `;
-        const courseList = document.getElementById('course-list');
+        const itemList = document.getElementById('item-list');
 
-        const createCourseItem = (course = { name: '', code: '' }) => {
-            const item = document.createElement('div');
-            item.className = 'course-item';
-            item.innerHTML = `
+        const createItem = (item = { name: '', code: '' }) => {
+            const div = document.createElement('div');
+            div.className = type === 'courses' ? 'subject-item' : 'course-item';
+            div.innerHTML = `
                 <div class="flex-grow-1">
-                    <input type="text" class="form-control mb-2" data-field="name" placeholder="Course Name" value="${course.name}">
-                    <input type="text" class="form-control" data-field="code" placeholder="Course Code" value="${course.code}">
+                    <input type="text" class="form-control mb-2" data-field="name" placeholder="Name" value="${item.name}">
+                    <input type="text" class="form-control" data-field="code" placeholder="Code" value="${item.code}">
                 </div>
                 <button type="button" class="btn btn-danger btn-sm remove-item-btn"><i class="bi bi-trash"></i></button>
             `;
-            item.querySelector('.remove-item-btn').onclick = () => item.remove();
-            return item;
+            div.querySelector('.remove-item-btn').onclick = () => div.remove();
+            return div;
         };
 
-        if (courses.length > 0) {
-            courses.forEach(course => courseList.appendChild(createCourseItem(course)));
+        if (items.length > 0) {
+            items.forEach(item => itemList.appendChild(createItem(item)));
         } else {
-             courseList.appendChild(createCourseItem());
+             itemList.appendChild(createItem());
         }
 
-        document.getElementById('add-course-btn').onclick = () => {
-            courseList.appendChild(createCourseItem());
+        document.getElementById('add-item-btn').onclick = () => {
+            itemList.appendChild(createItem());
         };
     }
 
@@ -1358,7 +1486,15 @@
             updatedData.list = courses;
             await updateDoc(doc(db, "studentData", currentEditingDocRef.id), { activeCourses: courses.length });
         
-        } else if (collectionName === 'routines') {
+        } else if (collectionName === 'courses') {
+            const subjects = [];
+            form.querySelectorAll('#subjects-editor .subject-item').forEach(item => {
+                const subject = { name: item.querySelector('[data-field="name"]').value, code: item.querySelector('[data-field="code"]').value };
+                if (subject.name) subjects.push(subject);
+            });
+            updatedData.subjects = subjects;
+        }
+        else if (collectionName === 'routines') {
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
             updatedData = {};
             days.forEach(day => {
@@ -1394,9 +1530,16 @@
             await updateDoc(doc(db, "studentData", currentEditingDocRef.id), { sgpa: Number(sgpa), credits: totalCredits });
         } else {
             form.querySelectorAll('.form-control, .form-select, textarea').forEach(input => {
-                if (input.disabled) return;
+                if (input.disabled || !input.id) return;
                 const key = input.id.replace('edit-', '');
-                updatedData[key] = (input.type === 'number') ? Number(input.value) : input.value;
+                 if (key === 'dueDate') {
+                    // Make sure a date is selected before converting
+                    if(input.value) {
+                       updatedData[key] = Timestamp.fromDate(new Date(input.value));
+                    }
+                } else {
+                     updatedData[key] = (input.type === 'number') ? Number(input.value) : input.value;
+                }
             });
         }
 
@@ -1415,7 +1558,7 @@
         const noticeText = document.getElementById('notice-text').value;
         if (!noticeText.trim()) return;
         try {
-            await addDoc(collection(db, 'notices'), { text: noticeText, timestamp: Timestamp.now() });
+            await addDoc(collection(db, 'notices'), { text: noticeText, timestamp: Timestamp.now(), authorName: 'Admin' });
             addNoticeModalEl.hide();
             document.getElementById('add-notice-form').reset();
             loadDocumentsForCollection('notices');
@@ -1462,6 +1605,56 @@
             alert("Error creating routine: " + error.message);
         }
     };
+    
+    saveNewCoursesBtn.onclick = async () => {
+        const deptName = document.getElementById('courses-dept-name').value.trim();
+        if (!deptName) return;
+        
+        try {
+            await setDoc(doc(db, "courses", deptName), {
+                subjects: []
+            });
+            createCoursesModalEl.hide();
+            document.getElementById('add-courses-form').reset();
+            loadDocumentsForCollection('courses');
+        } catch(error) {
+            console.error("Error creating courses doc:", error);
+            alert("Error creating courses doc: " + error.message);
+        }
+    };
+
+    saveNewAssignmentBtn.onclick = async () => {
+        const form = document.getElementById('add-assignment-form');
+        const title = document.getElementById('assignment-title').value;
+        const description = document.getElementById('assignment-description').value;
+        const department = document.getElementById('assignment-department').value;
+        const subjectCode = document.getElementById('assignment-subject-code').value;
+        const dueDate = document.getElementById('assignment-due-date').value;
+
+        if (!title || !department || !subjectCode || !dueDate) {
+            alert('Please fill out all required fields.');
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, 'assignments'), {
+                title,
+                description,
+                department,
+                subjectCode,
+                dueDate: Timestamp.fromDate(new Date(dueDate)),
+                createdAt: Timestamp.now(),
+                submissions: {}
+            });
+            createAssignmentModalEl.hide();
+            form.reset();
+            loadDocumentsForCollection('assignments');
+        } catch(error) {
+            console.error("Error creating assignment:", error);
+            alert("Error creating assignment: " + error.message);
+        }
+    };
+
 
     function openDeleteModal(docSnap) {
         docToDeleteRef = docSnap.ref;
